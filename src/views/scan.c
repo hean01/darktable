@@ -101,6 +101,18 @@ expose(dt_view_t *self, cairo_t *cri, int32_t width_i, int32_t height_i,
 int
 try_enter(dt_view_t *self)
 {
+  const GList *scanners;
+
+  /* find scanners available */
+  scanners = NULL;
+  dt_scanner_control_find_scanners(darktable.scanctl);
+  scanners = dt_scanner_control_get_scanners(darktable.scanctl);
+  if (scanners == NULL)
+  {
+    dt_control_log(_("no scanners available for use..."));
+    return 1;
+  }
+
   return 0;
 }
 

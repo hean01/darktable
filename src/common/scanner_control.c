@@ -77,9 +77,6 @@ dt_scanner_control_new()
   scanctl = malloc(sizeof(dt_scanner_control_t));
   memset(scanctl, 0, sizeof(dt_scanner_control_t));
 
-  /* find scanners available */
-  dt_scanner_control_find_scanners(scanctl);
-
   return scanctl;
 }
 
