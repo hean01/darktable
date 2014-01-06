@@ -123,7 +123,7 @@ const char* name()
 /* show module in left panel in all views */
 uint32_t views()
 {
-  return DT_VIEW_ALL;
+  return DT_VIEW_ALL & ~(DT_VIEW_SCAN);
 }
 
 uint32_t container()

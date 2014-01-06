@@ -2,6 +2,7 @@
     This file is part of darktable,
     copyright (c) 2009--2010 johannes hanika.
     copyright (c) 2012 tobias ellinghaus.
+    copyright (c) 2010--2014 henrik andersson.
 
     darktable is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -39,10 +40,11 @@ enum dt_view_type_flags_t
   DT_VIEW_LIGHTTABLE = 1,
   DT_VIEW_DARKROOM = 2,
   DT_VIEW_TETHERING = 4,
-  DT_VIEW_MAP = 8
+  DT_VIEW_MAP = 8,
+  DT_VIEW_SCAN = 16
 };
 
-#define DT_VIEW_ALL (DT_VIEW_LIGHTTABLE | DT_VIEW_DARKROOM | DT_VIEW_TETHERING | DT_VIEW_MAP)
+#define DT_VIEW_ALL (DT_VIEW_LIGHTTABLE | DT_VIEW_DARKROOM | DT_VIEW_TETHERING | DT_VIEW_MAP | DT_VIEW_SCAN)
 
 /**
  * main dt view module (as lighttable or darkroom)

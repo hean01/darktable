@@ -136,6 +136,17 @@ include_directories(${LIBXML2_INCLUDE_DIR})
 list(APPEND LIBS ${LIBXML2_LIBRARIES})
 add_definitions(${LIBXML2_DEFINITIONS})
 
+# Check for libsane for scan support
+if (USE_SCAN_SUPPORT)
+  find_package(Sane)
+  if (SANE_FOUND)
+    include_directories(${SANE_INCLUDE_DIR})
+    list(APPEND LIBS ${SANE_LIBRARY})
+    add_definitions(${SANE_DEFINITIONS})
+  else(SANE_FOUND)
+    message(FATAL_ERROR "Failed to find package 'sane-backends-devel' for scan support.")
+  endif(SANE_FOUND)
+endif(USE_SCAN_SUPPORT)
 
 if(USE_CAMERA_SUPPORT)
   find_package(Gphoto2)
@@ -343,6 +354,10 @@ if(USE_OPENCL)
   add_definitions("-DHAVE_OPENCL")
 endif(USE_OPENCL)
 
+if (SANE_FOUND)
+  add_definitions("-DHAVE_SANE")
+  set(SOURCES ${SOURCES} "common/scanner_control.c")
+endif(SANE_FOUND)
 
 if(GPHOTO2_FOUND)
   set(SOURCES ${SOURCES} "common/camera_control.c" "control/jobs/camera_jobs.c" "gui/camera_import_dialog.c" )
@@ -677,7 +692,3 @@ if(APPLE)
 endif(APPLE)
 target_link_libraries(darktable ${LIBS})
 install(TARGETS darktable DESTINATION bin)
-
-
-
-

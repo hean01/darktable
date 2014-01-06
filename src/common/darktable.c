@@ -37,6 +37,9 @@
 #ifdef HAVE_GPHOTO2
 #include "common/camera_control.h"
 #endif
+#ifdef HAVE_SANE
+#include "common/scanner_control.h"
+#endif
 #include "common/film.h"
 #include "common/grealpath.h"
 #include "common/image.h"
@@ -96,7 +99,7 @@ const char dt_supported_extensions[] = "3fr,arw,bay,bmq,cap,cine,cr2,crw,cs1,dc2
 
 static int usage(const char *argv0)
 {
-  printf("usage: %s [-d {all,cache,camctl,control,dev,fswatch,input,lighttable,masks,memory,nan,opencl,perf,pwstorage,sql}] [IMG_1234.{RAW,..}|image_folder/]", argv0);
+  printf("usage: %s [-d {all,cache,camctl,control,dev,fswatch,input,lighttable,masks,memory,nan,opencl,perf,pwstorage,scanctl,sql}] [IMG_1234.{RAW,..}|image_folder/]", argv0);
 #ifdef HAVE_OPENCL
   printf(" [--disable-opencl]");
 #endif
@@ -489,6 +492,7 @@ int dt_init(int argc, char *argv[], const int init_gui)
         else if(!strcmp(argv[k+1], "nan"))        darktable.unmuted |= DT_DEBUG_NAN; // check for NANs when processing the pipe.
         else if(!strcmp(argv[k+1], "masks"))      darktable.unmuted |= DT_DEBUG_MASKS; // masks related stuff.
         else if(!strcmp(argv[k+1], "lua"))        darktable.unmuted |= DT_DEBUG_LUA; // lua errors are reported on console
+        else if(!strcmp(argv[k+1], "scanctl"))     darktable.unmuted |= DT_DEBUG_SCANCTL; // scanner control module
         else return usage(argv[0]);
         k ++;
       }
@@ -637,6 +641,11 @@ int dt_init(int argc, char *argv[], const int init_gui)
 #ifdef HAVE_GPHOTO2
   // Initialize the camera control
   darktable.camctl=dt_camctl_new();
+#endif
+
+#ifdef HAVE_SANE
+  // Initialize the scanner control
+  darktable.scanctl = dt_scanner_control_new();
 #endif
 
   // get max lighttable thumbnail size:

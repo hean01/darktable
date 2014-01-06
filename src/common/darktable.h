@@ -158,7 +158,8 @@ typedef enum dt_debug_thread_t
   DT_DEBUG_NAN = 2048,
   DT_DEBUG_MASKS = 4096,
   DT_DEBUG_LUA = 8192,
-  DT_DEBUG_INPUT = 16384
+  DT_DEBUG_INPUT = 16384,
+  DT_DEBUG_SCANCTL = 32768
 }
 dt_debug_thread_t;
 
@@ -198,6 +199,8 @@ typedef struct darktable_t
   struct dt_blendop_t            *blendop;
   struct dt_dbus_t               *dbus;
   struct dt_undo_t               *undo;
+  struct dt_scanner_control_t    *scanctl;
+
   dt_pthread_mutex_t db_insert;
   dt_pthread_mutex_t plugin_threadsafe;
   dt_pthread_mutex_t capabilities_threadsafe;

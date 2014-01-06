@@ -56,6 +56,9 @@ typedef enum dt_control_gui_mode_t
 #ifdef HAVE_GPHOTO2
   DT_CAPTURE,
 #endif
+#ifdef HAVE_SANE
+  DT_SCAN,
+#endif
 #ifdef HAVE_MAP
   DT_MAP,
 #endif

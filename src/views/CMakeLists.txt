@@ -11,6 +11,11 @@ if(USE_GEO)
     set(MODULES ${MODULES} map)
 endif(USE_GEO)
 
+if(SANE_FOUND)
+    add_library(views_scan MODULE "scan.c")
+    set_target_properties(views_scan PROPERTIES OUTPUT_NAME scan)
+    set(MODULES ${MODULES} views_scan)
+endif(SANE_FOUND)
 
 if(GPHOTO2_FOUND)
     add_library(views_capture MODULE "capture.c")

@@ -60,6 +60,9 @@ void dt_view_manager_init(dt_view_manager_t *vm)
 #ifdef HAVE_GPHOTO2
     "capture",
 #endif
+#ifdef HAVE_SANE
+    "scan",
+#endif
 #ifdef HAVE_MAP
     "map",
 #endif

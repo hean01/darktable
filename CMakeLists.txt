@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 2.6)
 cmake_policy(VERSION 2.6)
 
 option(USE_CAMERA_SUPPORT "Detect and use camera support if available." ON)
+option(USE_SCAN_SUPPORT "Detect and use scanner support if available." ON)
 option(USE_NLS "Build Native Language Support (using gettext)" ON)
 option(USE_COLORD "Enable colord support" ON)
 option(USE_GEO "Build geotagging parts" ON)
