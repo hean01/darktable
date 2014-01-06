@@ -29,8 +29,19 @@ DT_MODULE(1)
 
 typedef struct dt_scan_view_t
 {
+  struct dt_scanner_t *scanner;
 }
 dt_scan_view_t;
+
+static void
+_scan_view_set_scanner(const dt_view_t *self, struct dt_scanner_t *scanner)
+{
+  dt_scan_view_t *view;
+
+  view = (dt_scan_view_t *)self->data;
+  view->scanner = scanner;
+  dt_control_log("Using scanner %s", dt_scanner_get_model(scanner));
+}
 
 const char *
 name(dt_view_t *self)
@@ -47,12 +58,12 @@ view(dt_view_t *self)
 void
 init(dt_view_t *self)
 {
-//  dt_scan_view_t *view;
-
   self->data = malloc(sizeof(dt_scan_view_t));
   memset(self->data, 0, sizeof(dt_scan_view_t));
-//  view = (dt_scan_view_t *)self->data;
 
+  /* setup the scan view proxy */
+  darktable.view_manager->proxy.scan.view = self;
+  darktable.view_manager->proxy.scan.set_scanner = _scan_view_set_scanner;
 }
 
 void
@@ -95,7 +106,6 @@ expose(dt_view_t *self, cairo_t *cri, int32_t width_i, int32_t height_i,
       module->gui_post_expose(module, cri, width_i, height_i, pointerx, pointery);
     modules = g_list_next(modules);
   }
-
 }
 
 int
