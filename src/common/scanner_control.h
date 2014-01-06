@@ -31,4 +31,5 @@ void dt_scanner_control_find_scanners(struct dt_scanner_control_t *self);
 
 const GList *dt_scanner_control_get_scanners(struct dt_scanner_control_t *self);
 
+const char *dt_scanner_model(struct dt_scanner_t *self);
 #endif

@@ -135,3 +135,9 @@ dt_scanner_control_get_scanners(struct dt_scanner_control_t *self)
   return self->devices;
 }
 
+
+const char *
+dt_scanner_model(struct dt_scanner_t *self)
+{
+  return self->device->model;
+}
