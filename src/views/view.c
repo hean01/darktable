@@ -1,7 +1,7 @@
 /*
     This file is part of darktable,
     copyright (c) 2009--2010 johannes hanika.
-    copyright (c) 2011-2012 henrik andersson.
+    copyright (c) 2011-2014 henrik andersson.
     copyright (c) 2012 tobias ellinghaus.
 
     darktable is free software: you can redistribute it and/or modify
@@ -1459,6 +1459,14 @@ void dt_view_map_set_map_source(const dt_view_manager_t *vm, OsmGpsMapSource_t m
 {
   if (vm->proxy.map.view)
     vm->proxy.map.set_map_source(vm->proxy.map.view, map_source);
+}
+#endif
+
+#ifdef HAVE_SANE
+void dt_view_scan_set_scanner(const dt_view_manager_t *vm, struct dt_scanner_t *scanner)
+{
+  if (vm->proxy.scan.view)
+    vm->proxy.scan.set_scanner(vm->proxy.scan.view, scanner);
 }
 #endif
 

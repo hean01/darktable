@@ -24,6 +24,9 @@
 #ifdef HAVE_MAP
 #include "osm-gps-map-source.h"
 #endif
+#ifdef HAVE_SANE
+#include "common/scanner_control.h"
+#endif
 #include <inttypes.h>
 #include <gui/gtk.h>
 #include <gmodule.h>
@@ -246,6 +249,15 @@ typedef struct dt_view_manager_t
     } map;
 #endif
 
+    /* scan view proxy object */
+#ifdef HAVE_SANE
+    struct
+    {
+      struct dt_view_t *view;
+      void (*set_scanner)(const dt_view_t *view, struct dt_scanner_t *scanner);
+    } scan;
+#endif
+
   } proxy;
 
 
@@ -353,6 +365,13 @@ void dt_view_filmstrip_prefetch();
 void dt_view_map_center_on_location(const dt_view_manager_t *vm, gdouble lon, gdouble lat, gdouble zoom);
 void dt_view_map_show_osd(const dt_view_manager_t *vm, gboolean enabled);
 void dt_view_map_set_map_source(const dt_view_manager_t *vm, OsmGpsMapSource_t map_source);
+#endif
+
+/*
+ * Scan View Proxy
+ */
+#ifdef HAVE_SANE
+void dt_view_scan_set_scanner(const dt_view_manager_t *vm, struct dt_scanner_t *scanner);
 #endif
 
 #endif
