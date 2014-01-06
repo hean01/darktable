@@ -79,7 +79,7 @@ dt_scanner_control_new()
   res = sane_init(&version, NULL);
   if (res != SANE_STATUS_GOOD)
   {
-    fprintf(stderr, "Failed to initialize sane.\n");
+    fprintf(stderr, "Failed to initialize sane with reason: %s\n", sane_strstatus(res));
     assert(0);
   }
 
@@ -116,7 +116,7 @@ dt_scanner_control_find_scanners(struct dt_scanner_control_t *self)
   res = sane_get_devices(&device_list, 0);
   if (res != SANE_STATUS_GOOD)
   {
-    fprintf(stderr, "[scanner_control] Failed to enumerate scanners.\n");
+    fprintf(stderr, "[scanner_control] Failed to enumerate scanners with reason: %s\n", sane_strstatus(res));
     return;
   }
 
@@ -153,8 +153,8 @@ dt_scanner_open(dt_scanner_t *self)
   res = sane_open(self->device->name, &self->handle);
   if (res != SANE_STATUS_GOOD)
   {
-    fprintf(stderr, "[scanner_control] Failed to open device '%s'\n",
-            self->device->name);
+    fprintf(stderr, "[scanner_control] Failed to open device '%s' with reason: %s\n",
+            self->device->name, sane_strstatus(res));
     return 1;
   }
   return 0;
