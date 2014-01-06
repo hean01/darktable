@@ -163,3 +163,9 @@ dt_scanner_model(dt_scanner_t *self)
 {
   return self->device->model;
 }
+
+const char *
+dt_scanner_name(struct dt_scanner_t *self)
+{
+  return self->device->name;
+}
