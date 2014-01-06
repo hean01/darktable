@@ -55,6 +55,19 @@ _scanner_dtor(dt_scanner_t *self)
   free(self);
 }
 
+static void
+_scanner_control_remove_devices(dt_scanner_control_t *self)
+{
+  GList *device;
+  while (self->devices)
+  {
+    device = g_list_last(self->devices);
+    _scanner_dtor(device->data);
+    self->devices = g_list_remove(self->devices, device);
+  }
+  self->devices = NULL;
+}
+
 struct dt_scanner_control_t *
 dt_scanner_control_new()
 {
@@ -82,15 +95,8 @@ dt_scanner_control_new()
 void
 dt_scanner_control_destroy(struct dt_scanner_control_t *self)
 {
-  GList *device;
-
   /* cleanup all devices */
-  while (self->devices)
-  {
-    device = g_list_last(self->devices);
-    _scanner_dtor(device->data);
-    self->devices = g_list_remove(self->devices, device);
-  }
+  _scanner_control_remove_devices(self);
 
   free(self);
 }
@@ -103,7 +109,10 @@ dt_scanner_control_find_scanners(struct dt_scanner_control_t *self)
   const SANE_Device **device_list;
   dt_scanner_t *device;
 
-  /* lets get all devices */
+  /* remove all known devices */
+  _scanner_control_remove_devices(self);
+
+  /* get all new */
   res = sane_get_devices(&device_list, 0);
   if (res != SANE_STATUS_GOOD)
   {
