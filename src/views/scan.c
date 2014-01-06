@@ -40,7 +40,7 @@ _scan_view_set_scanner(const dt_view_t *self, struct dt_scanner_t *scanner)
 
   view = (dt_scan_view_t *)self->data;
   view->scanner = scanner;
-  dt_control_log("Using scanner %s", dt_scanner_get_model(scanner));
+  dt_control_log("Using scanner %s", dt_scanner_model(scanner));
 }
 
 const char *
