@@ -75,6 +75,13 @@ if(GPHOTO2_FOUND)
 	set(MODULES ${MODULES} capture camera live_view)
 endif(GPHOTO2_FOUND)
 
+
+# check if gphoto2 found and add build of camera modules...
+if(SANE_FOUND)
+	add_library(scanner MODULE "scanner.c")
+	set(MODULES ${MODULES} scanner)
+endif(SANE_FOUND)
+
 # the modules specific to map mode
 if(USE_GEO)
 	add_library(location MODULE "location.c")
