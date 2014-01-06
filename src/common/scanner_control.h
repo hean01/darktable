@@ -31,5 +31,11 @@ void dt_scanner_control_find_scanners(struct dt_scanner_control_t *self);
 
 const GList *dt_scanner_control_get_scanners(struct dt_scanner_control_t *self);
 
+/** \brief open a scanner for use. */
+int dt_scanner_open(struct dt_scanner_t *self);
+/** \brief close the previous opend scanner. */
+void dt_scanner_close(struct dt_scanner_t *self);
+/** \brief get scanner model. */
 const char *dt_scanner_model(struct dt_scanner_t *self);
+
 #endif

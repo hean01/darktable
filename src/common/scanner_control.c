@@ -29,7 +29,7 @@
 typedef struct dt_scanner_t
 {
   const SANE_Device *device;
-  SANE_Handle *handle;
+  SANE_Handle handle;
 } dt_scanner_t;
 
 typedef struct dt_scanner_control_t
@@ -51,8 +51,7 @@ _scanner_ctor(const SANE_Device *device)
 static void
 _scanner_dtor(dt_scanner_t *self)
 {
-  if (self->handle)
-    sane_close(self->handle);
+  dt_scanner_close(self);
   free(self);
 }
 
@@ -136,8 +135,31 @@ dt_scanner_control_get_scanners(struct dt_scanner_control_t *self)
 }
 
 
+
+int
+dt_scanner_open(dt_scanner_t *self)
+{
+  SANE_Status res;
+
+  res = sane_open(self->device->name, &self->handle);
+  if (res != SANE_STATUS_GOOD)
+  {
+    fprintf(stderr, "[scanner_control] Failed to open device '%s'\n",
+            self->device->name);
+    return 1;
+  }
+  return 0;
+}
+
+void
+dt_scanner_close(dt_scanner_t *self)
+{
+  if (self->handle)
+    sane_close(self->handle);
+}
+
 const char *
-dt_scanner_model(struct dt_scanner_t *self)
+dt_scanner_model(dt_scanner_t *self)
 {
   return self->device->model;
 }
