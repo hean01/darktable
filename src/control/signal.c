@@ -78,6 +78,11 @@ static dt_signal_description _signal_description[DT_SIGNAL_COUNT] =
   {"dt-image-export-multiple",NULL,NULL,G_TYPE_NONE,g_cclosure_marshal_VOID__POINTER,1,pointer_arg},      // DT_SIGNAL_IMAGE_EXPORT_MULTIPLE
   {"dt-image-export-tmpfile",NULL,NULL,G_TYPE_NONE,g_cclosure_marshal_generic,2,image_export_arg},        // DT_SIGNAL_IMAGE_EXPORT_TMPFILE
   {"dt-imageio-storage-change",NULL,NULL,G_TYPE_NONE,g_cclosure_marshal_VOID__VOID,0,NULL},               // DT_SIGNAL_IMAGEIO_STORAGE_CHANGE
+
+  /* View specific signals */
+#ifdef HAVE_SANE
+  {"dt-view-scan-active-scanner-changed", NULL, NULL, G_TYPE_NONE, g_cclosure_marshal_VOID__POINTER, 1, pointer_arg} // DT_SIGNAL_VIEW_SCAN_ACTIVE_SCANNER_CHANGED
+#endif
 };
 
 static  GType _signal_type;

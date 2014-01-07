@@ -138,6 +138,15 @@ typedef enum dt_signal_t
     */
   DT_SIGNAL_IMAGEIO_STORAGE_CHANGE,
 
+#ifdef HAVE_SANE
+  /** \brief This signal is rasied when the scan view have been assigned a
+      scanner to be used using dt_view_scan_set_scanner()
+      \param[out] scanner A dt_scanner_t * to the scanner instance.
+      \return None
+  */
+  DT_SIGNAL_VIEW_SCAN_ACTIVE_SCANNER_CHANGED,
+#endif
+
   /* do not touch !*/
   DT_SIGNAL_COUNT
 }
