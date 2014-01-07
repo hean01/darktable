@@ -68,6 +68,84 @@ _scanner_control_remove_devices(dt_scanner_control_t *self)
   self->devices = NULL;
 }
 
+static int _scanner_option_index_by_name(dt_scanner_t *self, const char *name)
+{
+  int idx;
+  const SANE_Option_Descriptor *opt;
+
+  idx = 0;
+  while(1)
+  {
+    /* get option descriptor */
+    opt = sane_get_option_descriptor(self->handle, idx);
+    if (opt == NULL)
+      return -1;
+
+    if (opt->name && strcmp(opt->name, name) == 0)
+      break;
+
+    idx++;
+  }
+
+  return idx;
+}
+
+static const SANE_Option_Descriptor *
+_scanner_find_option_desc_by_name(dt_scanner_t *self, const char *name)
+{
+  int idx;
+
+  idx = _scanner_option_index_by_name(self, name);
+  if (idx == -1)
+    return NULL;
+
+  return sane_get_option_descriptor(self->handle, idx);
+}
+
+static char *
+_scanner_option_get_string_value_by_name(dt_scanner_t *self, const char *name)
+{
+  int idx;
+  char buf[256];
+  SANE_Status res;
+
+  idx = _scanner_option_index_by_name(self, name);
+  if (idx == -1)
+    return NULL;
+
+  res = sane_control_option(self->handle, idx, SANE_ACTION_GET_VALUE, buf, NULL);
+  if (res != SANE_STATUS_GOOD)
+  {
+    fprintf(stderr, "[scanner_control] Failed to get option '%s' value with reason: %s\n",
+            name, sane_strstatus(res));
+    return NULL;
+  }
+
+  return g_strdup(buf);
+}
+
+static SANE_Int
+_scanner_option_get_int_value_by_name(dt_scanner_t *self, const char *name)
+{
+  int idx;
+  SANE_Int ival;
+  SANE_Status res;
+
+  idx = _scanner_option_index_by_name(self, name);
+  if (idx == -1)
+    return -1;
+
+  res = sane_control_option(self->handle, idx, SANE_ACTION_GET_VALUE, &ival, NULL);
+  if (res != SANE_STATUS_GOOD)
+  {
+    fprintf(stderr, "[scanner_control] Failed to get option '%s' value with reason: %s\n",
+            name, sane_strstatus(res));
+    return -1;
+  }
+
+  return ival;
+}
+
 struct dt_scanner_control_t *
 dt_scanner_control_new()
 {
@@ -177,4 +255,85 @@ const char *
 dt_scanner_name(struct dt_scanner_t *self)
 {
   return self->device->name;
+}
+
+gboolean
+dt_scanner_create_option_widget(struct dt_scanner_t *self, const char *name,
+                                GtkWidget **label, GtkWidget **control)
+{
+  int i, cnt;
+  char buf[128];
+  const SANE_Int *ival;
+  const SANE_String_Const *sval;
+  SANE_Int current_ival;
+  char *current_sval;
+  const SANE_Option_Descriptor *option;
+
+  /* find option by name */
+  option = _scanner_find_option_desc_by_name(self, name);
+  if (option == NULL)
+  {
+    fprintf(stderr, "[scanner_control] No option named '%s' found\n", name);
+    return FALSE;
+  }
+
+  /* label */
+  *label = gtk_label_new(option->title);
+  gtk_misc_set_alignment(GTK_MISC(*label), 0.0, 0.5);
+
+  /* create options combobox */
+  *control = gtk_combo_box_text_new();
+  if (option->desc)
+    g_object_set(G_OBJECT(*control), "tooltip-text", option->desc, (char *)NULL);
+
+  if (option->type == SANE_TYPE_STRING)
+  {
+    /* handle list of strings */
+    cnt = 0;
+
+    /* get current selected string value of option */
+    current_sval = _scanner_option_get_string_value_by_name (self, name);
+
+    sval = option->constraint.string_list;
+    while (*sval)
+    {
+      /* add new option to combo */
+      gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(*control), *sval);
+
+      /* if this option is current value, select it */
+      if (current_sval && strcmp(*sval, current_sval) == 0)
+        gtk_combo_box_set_active(GTK_COMBO_BOX(*control), cnt);
+
+      cnt++;
+      sval++;
+    }
+
+    /* TODO: add signal handler for change */
+
+    /* cleanup */
+    g_free(current_sval);
+  }
+  else if (option->type == SANE_TYPE_INT && option->constraint_type == SANE_CONSTRAINT_WORD_LIST)
+  {
+    /* handle list of integers */
+
+    /* get current selected int value of option */
+    current_ival = _scanner_option_get_int_value_by_name(self, name);
+
+    ival = option->constraint.word_list;
+    cnt = *ival;
+    for (i = 0; i < cnt; i++)
+    {
+      ival++;
+      g_snprintf(buf, 128, "%d", *ival);
+      gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(*control), buf);
+      if (*ival == current_ival)
+        gtk_combo_box_set_active(GTK_COMBO_BOX(*control), i);
+    }
+
+    /* TODO: add signal handler for change */
+
+  }
+
+  return TRUE;
 }

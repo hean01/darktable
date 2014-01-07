@@ -20,6 +20,7 @@
 #define DT_SCANNER_CONTROL_H
 
 #include <glib.h>
+#include <gtk/gtk.h>
 
 struct dt_scanner_t;
 struct dt_scanner_control_t;
@@ -41,5 +42,7 @@ const char *dt_scanner_model(struct dt_scanner_t *self);
     \remark This is the uniq id string for the specific scanner.
 */
 const char *dt_scanner_name(struct dt_scanner_t *self);
-
+/** \brief helper function to create a option widget. */
+gboolean dt_scanner_create_option_widget(struct dt_scanner_t *self, const char *name,
+                                         GtkWidget **label, GtkWidget **control);
 #endif
