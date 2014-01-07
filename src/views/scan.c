@@ -115,9 +115,18 @@ expose(dt_view_t *self, cairo_t *cri, int32_t width_i, int32_t height_i,
 int
 try_enter(dt_view_t *self)
 {
+  dt_scan_view_t *view;
   const GList *scanners;
 
-  /* find scanners available */
+  view = (dt_scan_view_t *)self->data;
+
+  /* If we do have a scanner lets enter */
+  if (view->scanner)
+    return 0;
+
+  /* No active scanner assume first time enter for this instance
+     and find new scanners and activate the first in list.
+  */
   scanners = NULL;
   dt_scanner_control_find_scanners(darktable.scanctl);
   scanners = dt_scanner_control_get_scanners(darktable.scanctl);
@@ -126,6 +135,11 @@ try_enter(dt_view_t *self)
     dt_control_log(_("no scanners available for use..."));
     return 1;
   }
+
+  /* Set first scanner in list as active one for the view.
+     TODO: set from stored last_ui configuration
+  */
+  _scan_view_set_scanner(self, scanners->data);
 
   return 0;
 }
