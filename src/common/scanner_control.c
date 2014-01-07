@@ -246,13 +246,13 @@ dt_scanner_close(dt_scanner_t *self)
 }
 
 const char *
-dt_scanner_model(dt_scanner_t *self)
+dt_scanner_model(const dt_scanner_t *self)
 {
   return self->device->model;
 }
 
 const char *
-dt_scanner_name(struct dt_scanner_t *self)
+dt_scanner_name(const dt_scanner_t *self)
 {
   return self->device->name;
 }
