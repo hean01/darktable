@@ -47,6 +47,14 @@ _scan_view_set_scanner(const dt_view_t *self, struct dt_scanner_t *scanner)
                           view->scanner, NULL);
 }
 
+static const struct dt_scanner_t *
+_scan_view_get_scanner(const dt_view_t *self)
+{
+  dt_scan_view_t *view;
+  view = (dt_scan_view_t *)self->data;
+  return view->scanner;
+}
+
 const char *
 name(dt_view_t *self)
 {
@@ -68,6 +76,7 @@ init(dt_view_t *self)
   /* setup the scan view proxy */
   darktable.view_manager->proxy.scan.view = self;
   darktable.view_manager->proxy.scan.set_scanner = _scan_view_set_scanner;
+  darktable.view_manager->proxy.scan.get_scanner = _scan_view_get_scanner;
 }
 
 void

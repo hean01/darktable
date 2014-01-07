@@ -1468,6 +1468,14 @@ void dt_view_scan_set_scanner(const dt_view_manager_t *vm, struct dt_scanner_t *
   if (vm->proxy.scan.view)
     vm->proxy.scan.set_scanner(vm->proxy.scan.view, scanner);
 }
+
+const struct dt_scanner_t *dt_view_scan_get_scanner(const dt_view_manager_t *vm)
+{
+  if (vm->proxy.scan.view)
+    return vm->proxy.scan.get_scanner(vm->proxy.scan.view);
+
+  return NULL;
+}
 #endif
 
 // modelines: These editor modelines have been set for all relevant files by tools/update_modelines.sh

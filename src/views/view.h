@@ -255,6 +255,7 @@ typedef struct dt_view_manager_t
     {
       struct dt_view_t *view;
       void (*set_scanner)(const dt_view_t *view, struct dt_scanner_t *scanner);
+      const struct dt_scanner_t * (*get_scanner)(const dt_view_t *view);
     } scan;
 #endif
 
@@ -372,6 +373,7 @@ void dt_view_map_set_map_source(const dt_view_manager_t *vm, OsmGpsMapSource_t m
  */
 #ifdef HAVE_SANE
 void dt_view_scan_set_scanner(const dt_view_manager_t *vm, struct dt_scanner_t *scanner);
+const struct dt_scanner_t *dt_view_scan_get_scanner(const dt_view_manager_t *vm);
 #endif
 
 #endif
