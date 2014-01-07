@@ -68,7 +68,7 @@ _scanner_control_remove_devices(dt_scanner_control_t *self)
   self->devices = NULL;
 }
 
-static int _scanner_option_index_by_name(dt_scanner_t *self, const char *name)
+static int _scanner_option_index_by_name(const dt_scanner_t *self, const char *name)
 {
   int idx;
   const SANE_Option_Descriptor *opt;
@@ -91,7 +91,7 @@ static int _scanner_option_index_by_name(dt_scanner_t *self, const char *name)
 }
 
 static const SANE_Option_Descriptor *
-_scanner_find_option_desc_by_name(dt_scanner_t *self, const char *name)
+_scanner_find_option_desc_by_name(const dt_scanner_t *self, const char *name)
 {
   int idx;
 
@@ -103,7 +103,7 @@ _scanner_find_option_desc_by_name(dt_scanner_t *self, const char *name)
 }
 
 static char *
-_scanner_option_get_string_value_by_name(dt_scanner_t *self, const char *name)
+_scanner_option_get_string_value_by_name(const dt_scanner_t *self, const char *name)
 {
   int idx;
   char buf[256];
@@ -125,7 +125,7 @@ _scanner_option_get_string_value_by_name(dt_scanner_t *self, const char *name)
 }
 
 static SANE_Int
-_scanner_option_get_int_value_by_name(dt_scanner_t *self, const char *name)
+_scanner_option_get_int_value_by_name(const dt_scanner_t *self, const char *name)
 {
   int idx;
   SANE_Int ival;
@@ -258,7 +258,7 @@ dt_scanner_name(const dt_scanner_t *self)
 }
 
 gboolean
-dt_scanner_create_option_widget(struct dt_scanner_t *self, const char *name,
+dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name,
                                 GtkWidget **label, GtkWidget **control)
 {
   int i, cnt;

@@ -43,6 +43,6 @@ const char *dt_scanner_model(const struct dt_scanner_t *self);
 */
 const char *dt_scanner_name(const struct dt_scanner_t *self);
 /** \brief helper function to create a option widget. */
-gboolean dt_scanner_create_option_widget(struct dt_scanner_t *self, const char *name,
+gboolean dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name,
                                          GtkWidget **label, GtkWidget **control);
 #endif
