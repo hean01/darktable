@@ -356,7 +356,7 @@ endif(USE_OPENCL)
 
 if (SANE_FOUND)
   add_definitions("-DHAVE_SANE")
-  set(SOURCES ${SOURCES} "common/scanner_control.c")
+  set(SOURCES ${SOURCES} "common/scanner_control.c" "control/jobs/scanner_jobs.c")
 endif(SANE_FOUND)
 
 if(GPHOTO2_FOUND)
