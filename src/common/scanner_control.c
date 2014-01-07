@@ -34,6 +34,7 @@ typedef struct dt_scanner_t
   GList *listeners;
 } dt_scanner_t;
 
+
 typedef struct dt_scanner_control_t
 {
   GList *devices;
@@ -50,12 +51,14 @@ _scanner_ctor(const SANE_Device *device)
   return scanner;
 }
 
+
 static void
 _scanner_dtor(dt_scanner_t *self)
 {
   dt_scanner_close(self);
   free(self);
 }
+
 
 static void
 _scanner_control_remove_devices(dt_scanner_control_t *self)
@@ -70,7 +73,9 @@ _scanner_control_remove_devices(dt_scanner_control_t *self)
   self->devices = NULL;
 }
 
-static int _scanner_option_index_by_name(const dt_scanner_t *self, const char *name)
+
+static int
+_scanner_option_index_by_name(const dt_scanner_t *self, const char *name)
 {
   int idx;
   const SANE_Option_Descriptor *opt;
@@ -92,6 +97,7 @@ static int _scanner_option_index_by_name(const dt_scanner_t *self, const char *n
   return idx;
 }
 
+
 static const SANE_Option_Descriptor *
 _scanner_find_option_desc_by_name(const dt_scanner_t *self, const char *name)
 {
@@ -103,6 +109,7 @@ _scanner_find_option_desc_by_name(const dt_scanner_t *self, const char *name)
 
   return sane_get_option_descriptor(self->handle, idx);
 }
+
 
 static char *
 _scanner_option_get_string_value_by_name(const dt_scanner_t *self, const char *name)
@@ -126,6 +133,7 @@ _scanner_option_get_string_value_by_name(const dt_scanner_t *self, const char *n
   return g_strdup(buf);
 }
 
+
 static SANE_Int
 _scanner_option_get_int_value_by_name(const dt_scanner_t *self, const char *name)
 {
@@ -148,6 +156,7 @@ _scanner_option_get_int_value_by_name(const dt_scanner_t *self, const char *name
   return ival;
 }
 
+
 void
 _scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
 {
@@ -165,6 +174,7 @@ _scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
       l->on_state_changed(self, self->state, l->opaque);
   }
 }
+
 
 struct dt_scanner_control_t *
 dt_scanner_control_new()
@@ -190,6 +200,7 @@ dt_scanner_control_new()
   return scanctl;
 }
 
+
 void
 dt_scanner_control_destroy(struct dt_scanner_control_t *self)
 {
@@ -198,6 +209,7 @@ dt_scanner_control_destroy(struct dt_scanner_control_t *self)
 
   free(self);
 }
+
 
 void
 dt_scanner_control_find_scanners(struct dt_scanner_control_t *self)
@@ -235,12 +247,12 @@ dt_scanner_control_find_scanners(struct dt_scanner_control_t *self)
 
 }
 
+
 const GList *
 dt_scanner_control_get_scanners(struct dt_scanner_control_t *self)
 {
   return self->devices;
 }
-
 
 
 int
@@ -258,12 +270,18 @@ dt_scanner_open(dt_scanner_t *self)
   return 0;
 }
 
+
 void
 dt_scanner_close(dt_scanner_t *self)
 {
+  /* remove listeners */
+  while (self->listeners)
+    self->listeners = g_list_delete_link(self->listeners, self->listeners);
+
   if (self->handle)
     sane_close(self->handle);
 }
+
 
 const char *
 dt_scanner_model(const dt_scanner_t *self)
@@ -271,11 +289,13 @@ dt_scanner_model(const dt_scanner_t *self)
   return self->device->model;
 }
 
+
 const char *
 dt_scanner_name(const dt_scanner_t *self)
 {
   return self->device->name;
 }
+
 
 gboolean
 dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name,
@@ -358,6 +378,7 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
   return TRUE;
 }
 
+
 void
 dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *listener)
 {
@@ -365,7 +386,9 @@ dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *
   ((dt_scanner_t *)self)->listeners = g_list_append(self->listeners, listener);
 }
 
-dt_scanner_state_t dt_scanner_state(const struct dt_scanner_t *self)
+
+dt_scanner_state_t
+dt_scanner_state(const struct dt_scanner_t *self)
 {
   return self->state;
 }
