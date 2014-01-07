@@ -28,8 +28,10 @@
 
 typedef struct dt_scanner_t
 {
+  dt_scanner_state_t state;
   const SANE_Device *device;
   SANE_Handle handle;
+  GList *listeners;
 } dt_scanner_t;
 
 typedef struct dt_scanner_control_t
@@ -144,6 +146,24 @@ _scanner_option_get_int_value_by_name(const dt_scanner_t *self, const char *name
   }
 
   return ival;
+}
+
+void
+_scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
+{
+  GList *listener;
+  dt_scanner_listener_t *l;
+
+  ((dt_scanner_t*)self)->state = state;
+
+  /* dispatch on_state_changed to listeners */
+  listener = self->listeners;
+  while(listener)
+  {
+    l = (dt_scanner_listener_t *)listener->data;
+    if (l->on_state_changed)
+      l->on_state_changed(self, self->state, l->opaque);
+  }
 }
 
 struct dt_scanner_control_t *
@@ -336,4 +356,16 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
   }
 
   return TRUE;
+}
+
+void
+dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *listener)
+{
+  /* add listener */
+  ((dt_scanner_t *)self)->listeners = g_list_append(self->listeners, listener);
+}
+
+dt_scanner_state_t dt_scanner_state(const struct dt_scanner_t *self)
+{
+  return self->state;
 }
