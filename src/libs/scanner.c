@@ -81,9 +81,18 @@ _scanner_populate_scanner_list(dt_lib_module_t *self)
   gtk_combo_box_set_active(GTK_COMBO_BOX(lib->gui.scanners), 0);
 }
 
+static char * _scanner_options[] = {
+  "source",
+  "mode",
+  "depth",
+  "resolution",
+  NULL
+};
+
 static void
 _scanner_rebuild_scanner_options(dt_lib_module_t *self)
 {
+  char **sopt;
   GtkWidget *labels, *controls;
   GtkWidget *label, *widget;
   dt_lib_scanner_t *lib;
@@ -97,32 +106,16 @@ _scanner_rebuild_scanner_options(dt_lib_module_t *self)
   labels = gtk_vbox_new(TRUE, 0);
   controls = gtk_vbox_new(TRUE, 0);
 
-  /* source option */
-  if (dt_scanner_create_option_widget(lib->data.scanner, "source", &label, &widget))
+  /* for each scanner option add to ui */
+  sopt = _scanner_options;
+  while (*sopt)
   {
-    gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
-    gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
-  }
-
-  /* mode option */
-  if (dt_scanner_create_option_widget(lib->data.scanner, "mode", &label, &widget))
-  {
-    gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
-    gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
-  }
-
-  /* depth option */
-  if (dt_scanner_create_option_widget(lib->data.scanner, "depth", &label, &widget))
-  {
-    gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
-    gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
-  }
-
-  /* resolution option */
-  if (dt_scanner_create_option_widget(lib->data.scanner, "resolution", &label, &widget))
-  {
-    gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
-    gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
+    if (dt_scanner_create_option_widget(lib->data.scanner, *sopt, &label, &widget))
+    {
+      gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
+      gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
+    }
+    sopt++;
   }
 
   /* and new options to ui */
