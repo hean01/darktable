@@ -36,20 +36,17 @@ typedef struct dt_lib_scanner_t
     GtkHBox *options;
   } gui;
 
-  /** Data part of the module */
-  struct
-  {
-    struct dt_scanner_t *scanner;
-  } data;
 } dt_lib_scanner_t;
 
 static void
 _scanner_populate_scanner_list(dt_lib_module_t *self)
 {
+  int idx, active_idx;
   GtkTreeIter iter;
   GList *scanners;
   dt_lib_scanner_t *lib;
   struct dt_scanner_t *scanner;
+  const struct dt_scanner_t *active_scanner;
 
   lib = self->data;
 
@@ -69,16 +66,22 @@ _scanner_populate_scanner_list(dt_lib_module_t *self)
   }
 
   /* we have scanners lets populate the list */
+  active_idx = idx = 0;
+  active_scanner = dt_view_scan_get_scanner(darktable.view_manager);
   while(scanners)
   {
     scanner = scanners->data;
     gtk_combo_box_text_append_text(lib->gui.scanners,
                                    dt_scanner_model(scanner));
+
+    if (strcmp(dt_scanner_name(scanner), dt_scanner_name(active_scanner)) == 0)
+      active_idx = idx;
+
     scanners = g_list_next(scanners);
+    idx++;
   }
 
-  /* FIXME: We should try to select the last remebered selected scanner */
-  gtk_combo_box_set_active(GTK_COMBO_BOX(lib->gui.scanners), 0);
+  gtk_combo_box_set_active(GTK_COMBO_BOX(lib->gui.scanners), active_idx);
 }
 
 static char * _scanner_options[] = {
@@ -90,7 +93,7 @@ static char * _scanner_options[] = {
 };
 
 static void
-_scanner_rebuild_scanner_options(dt_lib_module_t *self)
+_scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_t *scanner)
 {
   char **sopt;
   GtkWidget *labels, *controls;
@@ -106,11 +109,16 @@ _scanner_rebuild_scanner_options(dt_lib_module_t *self)
   labels = gtk_vbox_new(TRUE, 0);
   controls = gtk_vbox_new(TRUE, 0);
 
+  /* get active scanner from view */
+  scanner = dt_view_scan_get_scanner(darktable.view_manager);
+  if (scanner == NULL)
+    abort();
+
   /* for each scanner option add to ui */
   sopt = _scanner_options;
   while (*sopt)
   {
-    if (dt_scanner_create_option_widget(lib->data.scanner, *sopt, &label, &widget))
+    if (dt_scanner_create_option_widget(scanner, *sopt, &label, &widget))
     {
       gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
       gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
@@ -150,30 +158,22 @@ _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
   idx = gtk_combo_box_get_active(GTK_COMBO_BOX(lib->gui.scanners));
 
   /* reset and fetch new list of scanners */
-  lib->data.scanner = NULL;
   scanners = (GList *)dt_scanner_control_get_scanners(darktable.scanctl);
   scanner = g_list_nth_data(scanners, idx);
 
   if (scanner == NULL)
     abort();
 
-  /* open the scanner and assign scanner to the scan view */
-  if (dt_scanner_open(scanner) != 0)
-  {
-    dt_control_log("Failed to open selected scanner...");
-    return;
-  }
-
+  /* assign scanner to view */
   dt_view_scan_set_scanner(darktable.view_manager, scanner);
 
-  /* close previous open scanner */
-  if (lib->data.scanner)
-    dt_scanner_close(lib->data.scanner);
+}
 
-  lib->data.scanner = scanner;
-
-  /* rebuild scanner options */
-  _scanner_rebuild_scanner_options(opaque);
+static void
+_scanner_view_scan_active_scanner_changed(const struct dt_scanner_t *scanner, gpointer opaque)
+{
+  /* rebuild scanner specific options */
+  _scanner_rebuild_scanner_options(opaque, scanner);
 }
 
 const char*
@@ -227,7 +227,10 @@ gui_init (dt_lib_module_t *self)
   gtk_box_pack_start(GTK_BOX(hbox1), GTK_WIDGET(lib->gui.scanners),
                      TRUE, TRUE, 0);
 
-   g_signal_connect (G_OBJECT (lib->gui.scanners), "changed",
+  /* populate the scanner list and select active scanner */
+  _scanner_populate_scanner_list(self);
+
+  g_signal_connect (G_OBJECT (lib->gui.scanners), "changed",
                     G_CALLBACK (_scanner_scanners_combobox_changed),
                     self);
 
@@ -247,13 +250,20 @@ gui_init (dt_lib_module_t *self)
   gtk_box_pack_start(GTK_BOX(vbox1), w, TRUE, TRUE, 0);
   /* TODO: Add signal handler */
 
-  /* populate the scanner list and select first item */
-  _scanner_populate_scanner_list(self);
+  /* we want to act upon scan view scanner changes */
+  dt_control_signal_connect(darktable.signals, DT_SIGNAL_VIEW_SCAN_ACTIVE_SCANNER_CHANGED,
+                            G_CALLBACK(_scanner_view_scan_active_scanner_changed), self);
+
+  /* rebuild scanner options */
+  _scanner_rebuild_scanner_options(self, dt_view_scan_get_scanner(darktable.view_manager));
 }
 
 void
 gui_cleanup (dt_lib_module_t *self)
 {
+  /* disconnect from signals */
+  dt_control_signal_disconnect(darktable.signals, G_CALLBACK(_scanner_view_scan_active_scanner_changed), self);
+
   g_free(self->data);
   self->data = NULL;
 }
