@@ -172,6 +172,7 @@ _scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
     l = (dt_scanner_listener_t *)listener->data;
     if (l->on_state_changed)
       l->on_state_changed(self, self->state, l->opaque);
+    listener = g_list_next(listener);
   }
 }
 
@@ -391,4 +392,13 @@ dt_scanner_state_t
 dt_scanner_state(const struct dt_scanner_t *self)
 {
   return self->state;
+}
+
+
+void
+dt_scanner_scan_preview(const struct dt_scanner_t *self)
+{
+  _scanner_change_state(self, SCANNER_STATE_BUSY);
+  sleep(4);
+  _scanner_change_state(self, SCANNER_STATE_READY);
 }

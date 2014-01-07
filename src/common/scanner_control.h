@@ -65,4 +65,6 @@ void dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listene
 /** \brief Get scanner state. */
 dt_scanner_state_t dt_scanner_state(const struct dt_scanner_t *self);
 
+/** \brief Scan preview. */
+void dt_scanner_scan_preview(const struct dt_scanner_t *self);
 #endif
