@@ -37,8 +37,19 @@ static void
 _scan_view_set_scanner(const dt_view_t *self, struct dt_scanner_t *scanner)
 {
   dt_scan_view_t *view;
-
   view = (dt_scan_view_t *)self->data;
+
+  /* close previously active scanner */
+  if (view->scanner)
+    dt_scanner_close(view->scanner);
+
+  /* try open the new one */
+  if (dt_scanner_open(scanner) != 0)
+  {
+    dt_control_log("Failed to open selected scanner...");
+    /* TODO: Bail out from view... */
+  }
+
   view->scanner = scanner;
   dt_control_log("Using scanner %s", dt_scanner_model(scanner));
 
