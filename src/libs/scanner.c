@@ -234,8 +234,7 @@ gui_init (dt_lib_module_t *self)
   gtk_box_pack_start(GTK_BOX(hbox1), GTK_WIDGET(lib->gui.scanners),
                      TRUE, TRUE, 0);
 
-  /* TODO: setup signal handler for combobox */
-  g_signal_connect (G_OBJECT (lib->gui.scanners), "changed",
+   g_signal_connect (G_OBJECT (lib->gui.scanners), "changed",
                     G_CALLBACK (_scanner_scanners_combobox_changed),
                     self);
 
