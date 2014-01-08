@@ -30,6 +30,7 @@ DT_MODULE(1)
 typedef struct dt_scan_view_t
 {
   struct dt_scanner_t *scanner;
+  dt_scanner_listener_t *scanner_listener;
 }
 dt_scan_view_t;
 
@@ -53,6 +54,9 @@ _scan_view_set_scanner(const dt_view_t *self, struct dt_scanner_t *scanner)
   view->scanner = scanner;
   dt_control_log("Using scanner %s", dt_scanner_model(scanner));
 
+  /* add view as listener to scanner */
+  dt_scanner_add_listener(view->scanner, view->scanner_listener);
+
   /* notify about the scanner to be used */
   dt_control_signal_raise(darktable.signals, DT_SIGNAL_VIEW_SCAN_ACTIVE_SCANNER_CHANGED,
                           view->scanner, NULL);
@@ -64,6 +68,13 @@ _scan_view_get_scanner(const dt_view_t *self)
   dt_scan_view_t *view;
   view = (dt_scan_view_t *)self->data;
   return view->scanner;
+}
+
+static void
+_scan_view_on_preview_update(const struct dt_scanner_t *scanner, void *opaque)
+{
+  /* on preview update callback, redraw center view */
+  dt_control_queue_redraw_center();
 }
 
 const char *
@@ -81,13 +92,22 @@ view(dt_view_t *self)
 void
 init(dt_view_t *self)
 {
+  dt_scan_view_t *view;
+
   self->data = malloc(sizeof(dt_scan_view_t));
   memset(self->data, 0, sizeof(dt_scan_view_t));
+
+  view = (dt_scan_view_t *)self->data;
 
   /* setup the scan view proxy */
   darktable.view_manager->proxy.scan.view = self;
   darktable.view_manager->proxy.scan.set_scanner = _scan_view_set_scanner;
   darktable.view_manager->proxy.scan.get_scanner = _scan_view_get_scanner;
+
+  /* create scanner listener */
+  view->scanner_listener = malloc(sizeof(dt_scanner_listener_t));
+  view->scanner_listener->opaque = self;
+  view->scanner_listener->on_scan_preview_update = _scan_view_on_preview_update;
 }
 
 void
@@ -176,10 +196,11 @@ enter(dt_view_t *self)
 void
 leave(dt_view_t *self)
 {
-#if 0
   dt_scan_view_t *view;
   view = (dt_scan_view_t *)self->data;
-#endif
+
+  /* remove view as listener of scanner */
+  dt_scanner_add_listener(view->scanner, view->scanner_listener);
 }
 
 void
