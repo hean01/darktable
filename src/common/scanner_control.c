@@ -391,6 +391,18 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     /* TODO: add signal handler for change */
 
   }
+  else
+  {
+    fprintf(stderr, "[scanner_control] Unsupported option type %d for '%s'\n",
+            option->type, name);
+
+    /* destroy and cleanup */
+    gtk_widget_destroy(*label);
+    gtk_widget_destroy(*control);
+    *label = *control = NULL;
+
+    return FALSE;
+  }
 
   return TRUE;
 }
