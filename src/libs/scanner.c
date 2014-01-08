@@ -156,6 +156,8 @@ _scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_
 
   gtk_box_pack_start(GTK_BOX(self->widget), GTK_WIDGET(lib->gui.options), TRUE, FALSE, 5);
   gtk_box_reorder_child(GTK_BOX(self->widget), GTK_WIDGET(lib->gui.options), 1);
+
+  gtk_widget_show_all(GTK_WIDGET(lib->gui.options));
 }
 
 static void
