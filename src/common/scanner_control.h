@@ -62,6 +62,8 @@ gboolean dt_scanner_create_option_widget(const struct dt_scanner_t *self, const 
                                          GtkWidget **label, GtkWidget **control);
 /** \brief Add a listener to scanner. */
 void dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *listener);
+/** \brief Remove a listener from scanner. */
+void dt_scanner_remove_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *listener);
 /** \brief Get scanner state. */
 dt_scanner_state_t dt_scanner_state(const struct dt_scanner_t *self);
 

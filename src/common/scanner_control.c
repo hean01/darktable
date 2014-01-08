@@ -388,6 +388,14 @@ dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *
 }
 
 
+void
+dt_scanner_remove_listener(const struct dt_scanner_t *self,dt_scanner_listener_t *listener)
+{
+  /* remove listener */
+  ((dt_scanner_t *)self)->listeners = g_list_remove(self->listeners, listener);
+}
+
+
 dt_scanner_state_t
 dt_scanner_state(const struct dt_scanner_t *self)
 {

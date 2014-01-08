@@ -326,6 +326,7 @@ gui_cleanup (dt_lib_module_t *self)
   dt_lib_scanner_t *lib;
 
   lib = ((dt_lib_module_t *)self)->data;
+  dt_scanner_remove_listener(dt_view_scan_get_scanner(darktable.view_manager), lib->data.scanner_listener);
 
   g_free(lib->data.scanner_listener);
 
