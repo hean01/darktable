@@ -176,6 +176,22 @@ _scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
   }
 }
 
+static void
+_scanner_dispatch_scan_preview_update(const dt_scanner_t *self)
+{
+  GList *listener;
+  dt_scanner_listener_t *l;
+
+  /* dispatch to listeners */
+  listener = self->listeners;
+  while (listener)
+  {
+    l = (dt_scanner_listener_t *)listener->data;
+    if (l->on_scan_preview_update)
+      l->on_scan_preview_update(self, l->opaque);
+    listener = g_list_next(listener);
+  }
+}
 
 struct dt_scanner_control_t *
 dt_scanner_control_new()
@@ -407,6 +423,11 @@ void
 dt_scanner_scan_preview(const struct dt_scanner_t *self)
 {
   _scanner_change_state(self, SCANNER_STATE_BUSY);
+  /* TODO: read preview from scanner and write data into pixmap.
+     dispatch on_scan_preview_update() at proper place to get an
+     interactive feedback of the scan process.
+   */
   sleep(4);
+  _scanner_dispatch_scan_preview_update(self);
   _scanner_change_state(self, SCANNER_STATE_READY);
 }

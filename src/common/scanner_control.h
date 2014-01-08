@@ -36,6 +36,8 @@ typedef struct dt_scanner_listener_t
   void *opaque;
   void (*on_state_changed)(const struct dt_scanner_t *scanner,
                            dt_scanner_state_t state, void *opaque);
+  /** \brief callback when there is new data in the scan preview pixbuf */
+  void (*on_scan_preview_update)(const struct dt_scanner_t *scanner, void *opaque);
 } dt_scanner_listener_t;
 
 struct dt_scanner_control_t *dt_scanner_control_new();
