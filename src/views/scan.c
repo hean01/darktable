@@ -106,6 +106,7 @@ init(dt_view_t *self)
 
   /* create scanner listener */
   view->scanner_listener = malloc(sizeof(dt_scanner_listener_t));
+  memset(view->scanner_listener, 0, sizeof(dt_scanner_listener_t));
   view->scanner_listener->opaque = self;
   view->scanner_listener->on_scan_preview_update = _scan_view_on_preview_update;
 }

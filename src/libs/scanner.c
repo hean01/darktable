@@ -128,11 +128,25 @@ _scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_
   sopt = _scanner_options;
   while (*sopt)
   {
-    if (dt_scanner_create_option_widget(scanner, *sopt, &label, &widget))
+    /* try create option from hardcoded list */
+    if (dt_scanner_create_option_widget(scanner, *sopt, &label, &widget) == FALSE)
+    {
+      /* if no axis independent resolution option is available, lets
+         try generic resoltion option instead */
+      if (strcmp(*sopt, "x-resolution") == 0)
+      {
+        /* use option "resolution" instead and skip next "y-resolution" in list */
+        dt_scanner_create_option_widget(scanner, "resolution", &label, &widget);
+        sopt++;
+      }
+    }
+
+    if (label && widget)
     {
       gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
       gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
     }
+
     sopt++;
   }
 
