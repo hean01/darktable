@@ -123,24 +123,33 @@ configure(dt_view_t *self, int wd, int ht)
 }
 
 void
-expose(dt_view_t *self, cairo_t *cri, int32_t width_i, int32_t height_i,
+expose(dt_view_t *self, cairo_t *cr, int32_t width_i, int32_t height_i,
        int32_t pointerx, int32_t pointery)
 {
   GList *modules;
   dt_lib_module_t *module;
-
-#if 0
   dt_scan_view_t *view;
+  cairo_surface_t *preview;
 
   view = (dt_scan_view_t *)self->data;
-#endif
 
   /* clear background */
-  cairo_set_source_rgb (cri, .2, .2, .2);
-  cairo_rectangle(cri, 0, 0, width_i, height_i);
-  cairo_fill (cri);
+  cairo_set_source_rgb (cr, .2, .2, .2);
+  cairo_rectangle(cr, 0, 0, width_i, height_i);
+  cairo_fill (cr);
 
   /* draw the preview scan if any */
+  preview = (cairo_surface_t *)dt_scanner_preview(view->scanner);
+  if (preview)
+  {
+    cairo_rectangle(cr, 0, 0, width_i, height_i);
+    cairo_set_source_surface (cr, preview, 0, 0);
+    cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);
+    cairo_fill_preserve(cr);
+    cairo_set_line_width(cr, 1.0);
+    cairo_set_source_rgb (cr, .3, .3, .3);
+    cairo_stroke(cr);
+  }
 
   /* dispatch post expose to view modules */
   modules = darktable.lib->plugins;
@@ -148,7 +157,7 @@ expose(dt_view_t *self, cairo_t *cri, int32_t width_i, int32_t height_i,
   {
     module = (dt_lib_module_t *)(modules->data);
     if( (module->views() & self->view(self)) && module->gui_post_expose )
-      module->gui_post_expose(module, cri, width_i, height_i, pointerx, pointery);
+      module->gui_post_expose(module, cr, width_i, height_i, pointerx, pointery);
     modules = g_list_next(modules);
   }
 }
