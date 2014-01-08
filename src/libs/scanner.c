@@ -202,7 +202,7 @@ _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
 }
 
 static void
-_scanner_view_scan_active_scanner_changed(const struct dt_scanner_t *scanner, gpointer opaque)
+_scanner_view_scan_active_scanner_changed(gpointer instance, const struct dt_scanner_t *scanner, gpointer opaque)
 {
   dt_lib_scanner_t *lib;
   lib = ((dt_lib_module_t *)opaque)->data;
