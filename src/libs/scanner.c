@@ -97,7 +97,8 @@ static char * _scanner_options[] = {
   "source",
   "mode",
   "depth",
-  "resolution",
+  "x-resolution",
+  "y-resolution",
   NULL
 };
 
