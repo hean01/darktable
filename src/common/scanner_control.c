@@ -32,6 +32,9 @@ typedef struct dt_scanner_t
   const SANE_Device *device;
   SANE_Handle handle;
   GList *listeners;
+
+  cairo_surface_t *preview;
+
 } dt_scanner_t;
 
 
@@ -154,6 +157,27 @@ _scanner_option_get_int_value_by_name(const dt_scanner_t *self, const char *name
   }
 
   return ival;
+}
+
+static int
+_scanner_option_set_bool_value_by_name(const dt_scanner_t *self, const char *name, gboolean bval)
+{
+  int idx;
+  SANE_Status res;
+
+  idx = _scanner_option_index_by_name(self, name);
+  if (idx == -1)
+    return 1;
+
+  res = sane_control_option(self->handle, idx, SANE_ACTION_SET_VALUE, &bval, NULL);
+  if (res != SANE_STATUS_GOOD)
+  {
+    fprintf(stderr, "[scanner_control] Failed to set bool option '%s' value to %s with reason: %s\n",
+            name, bval ? "true" : "false", sane_strstatus(res));
+    return 1;
+  }
+
+  return 0;
 }
 
 
@@ -431,15 +455,102 @@ dt_scanner_state(const struct dt_scanner_t *self)
 }
 
 
+const cairo_surface_t *
+dt_scanner_preview(const struct dt_scanner_t *self)
+{
+  return self->preview;
+}
+
+
 void
 dt_scanner_scan_preview(const struct dt_scanner_t *self)
 {
+  int i, byte_count;
+  SANE_Int len;
+  SANE_Status res;
+  SANE_Parameters params;
+  uint8_t *pixels;
+  uint8_t *buf;
+ 
+  buf = pixels = NULL;
+  byte_count = 0;
+
   _scanner_change_state(self, SCANNER_STATE_BUSY);
-  /* TODO: read preview from scanner and write data into pixmap.
-     dispatch on_scan_preview_update() at proper place to get an
-     interactive feedback of the scan process.
-   */
-  sleep(4);
-  _scanner_dispatch_scan_preview_update(self);
+
+  /* setup scan preview options */
+  _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
+
+  /* get scan parameters */
+  res = sane_get_parameters(self->handle, &params);
+  if (res != SANE_STATUS_GOOD) {
+    fprintf(stderr, "[scanner_control] Failed to get preview scan parameters with reason: %s\n",
+            sane_strstatus(res));
+    goto bail_out;
+  }
+  fprintf(stderr,"[scanner_control] Params: format=%d, bytes_per_line=%d, pixels_per_line=%d, lines=%d, depth=%d\n",
+          params.format, params.bytes_per_line, params.pixels_per_line,
+          params.lines, params.depth);
+
+  /* start scan preview */
+  res = sane_start(self->handle);
+  if (res != SANE_STATUS_GOOD)
+  {
+    fprintf(stderr, "[scanner_control] Failed to start preview scan with reason: %s\n",
+            sane_strstatus(res));
+    goto bail_out;
+  }
+
+  /* initialize preview cairo surface */
+  if (self->preview)
+    cairo_surface_destroy(self->preview);
+
+  ((dt_scanner_t *)self)->preview = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
+                                                               params.pixels_per_line, params.lines);
+
+  pixels = cairo_image_surface_get_data(self->preview);
+
+  /* start read data from scanner */
+  /* FIXME: dont assume data is 8bit and RGB interleaved */
+  buf = g_malloc(params.bytes_per_line);
+  sane_set_io_mode(self->handle, 0);
+
+  while (res != SANE_STATUS_EOF)
+  {
+    /* read scan line and update cairo surface */
+    res = sane_read(self->handle, buf, params.bytes_per_line, &len);
+    if (res != SANE_STATUS_GOOD && res != SANE_STATUS_EOF)
+    {
+      fprintf(stderr, "[scanner_control] Failed to read data from preview scan with reason: %s\n",
+              sane_strstatus(res));
+      goto bail_out;
+    }
+
+    /* write pixels into surface */
+    for (i = 0; i < len; i++)
+    {
+      *pixels = buf[i];
+
+      pixels++; 
+      byte_count++;
+
+      /* pixels in CAIRO_FORMAT_RGB24 are stored as 32bit integers where first byte is unused */
+      if (byte_count == 3)
+      {
+        *pixels = 0x00;
+        pixels++;
+        byte_count = 0;
+      }
+    } 
+
+    /* signal ui to update pixbuf redraw */
+    cairo_surface_mark_dirty(self->preview);
+    _scanner_dispatch_scan_preview_update(self);
+  }
+
+bail_out:
+  g_free(buf);
+  /* reset scan preview options */
+  _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
+
   _scanner_change_state(self, SCANNER_STATE_READY);
 }

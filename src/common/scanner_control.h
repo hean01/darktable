@@ -19,6 +19,7 @@
 #ifndef DT_SCANNER_CONTROL_H
 #define DT_SCANNER_CONTROL_H
 
+#include <cairo.h>
 #include <glib.h>
 #include <gtk/gtk.h>
 
@@ -68,7 +69,8 @@ void dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listene
 void dt_scanner_remove_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *listener);
 /** \brief Get scanner state. */
 dt_scanner_state_t dt_scanner_state(const struct dt_scanner_t *self);
-
-/** \brief Scan preview. */
+/** \brief Get scanner preview cairo surface */
+const cairo_surface_t *dt_scanner_preview(const struct dt_scanner_t *self);
+/** \brief Perform preview scan into preview surface. */
 void dt_scanner_scan_preview(const struct dt_scanner_t *self);
 #endif
