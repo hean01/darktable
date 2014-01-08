@@ -755,15 +755,10 @@ dt_gui_gtk_init(dt_gui_gtk_t *gui, int argc, char *argv[])
     g_snprintf(gtkrc, PATH_MAX, "%s/darktable.gtkrc", datadir);
 
   if (g_file_test(gtkrc, G_FILE_TEST_EXISTS))
-#ifdef __WIN32__
   {
-    gchar *str = g_strjoin("GTK2_RC_FILES=", gtkrc, NULL);
-    putenv(str);
-    g_free(str);
+    char *default_files[2] = {gtkrc, NULL};
+    gtk_rc_set_default_files(default_files);
   }
-#else
-    (void)setenv("GTK2_RC_FILES", gtkrc, 1);
-#endif
   else
     fprintf(stderr, "[gtk_init] could not find darktable.gtkrc");
 
@@ -800,9 +795,6 @@ dt_gui_gtk_init(dt_gui_gtk_t *gui, int argc, char *argv[])
   gui->expanded_group_id = -1;
   gui->presets_popup_menu = NULL;
   gui->last_preset = NULL;
-
-  if(g_file_test(gtkrc, G_FILE_TEST_EXISTS))
-    gtk_rc_parse (gtkrc);
 
   // Initializing the shortcut groups
   darktable.control->accelerators = gtk_accel_group_new();
