@@ -19,6 +19,7 @@
 #include <assert.h>
 
 #include "control/control.h"
+#include "control/jobs/scanner_jobs.h"
 #include "common/darktable.h"
 #include "common/scanner_control.h"
 #include "libs/lib.h"
@@ -33,8 +34,16 @@ typedef struct dt_lib_scanner_t
   struct
   {
     GtkComboBoxText *scanners;
+    GtkWidget *refresh;
     GtkHBox *options;
+    GtkWidget *preview;
   } gui;
+
+  /* data part of module */
+  struct
+  {
+    dt_scanner_listener_t *scanner_listener;
+  } data;
 
 } dt_lib_scanner_t;
 
@@ -145,6 +154,14 @@ _scanner_refresh_button_click(GtkWidget *w, gpointer opaque)
 }
 
 static void
+_scanner_scan_preview_click(GtkWidget *w, gpointer opaque)
+{
+  dt_job_t job;
+  dt_scanner_preview_job_init(&job, dt_view_scan_get_scanner(darktable.view_manager));
+  dt_control_add_job(darktable.control, &job);
+}
+
+static void
 _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
 {
   gint idx;
@@ -172,8 +189,41 @@ _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
 static void
 _scanner_view_scan_active_scanner_changed(const struct dt_scanner_t *scanner, gpointer opaque)
 {
+  dt_lib_scanner_t *lib;
+  lib = ((dt_lib_module_t *)opaque)->data;
+
+  /* add listener to the new scanner */
+  dt_scanner_add_listener(scanner, lib->data.scanner_listener);
+
   /* rebuild scanner specific options */
   _scanner_rebuild_scanner_options(opaque, scanner);
+}
+
+/* Called when state of active scanner is changed. */
+static void
+_scanner_on_scanner_state_changed(const struct dt_scanner_t *scanner,
+                                  dt_scanner_state_t state, void *opaque)
+{
+  dt_lib_scanner_t *lib;
+  lib = ((dt_lib_module_t *)opaque)->data;
+
+  /* lock down ui elements */
+  if (state == SCANNER_STATE_BUSY)
+  {
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.scanners), FALSE);
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.refresh), FALSE);
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.options), FALSE);
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.preview), FALSE);
+  }
+  else
+  {
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.scanners), TRUE);
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.refresh), TRUE);
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.options), TRUE);
+    gtk_widget_set_sensitive(GTK_WIDGET(lib->gui.preview), TRUE);
+  }
+
+  dt_control_queue_redraw();
 }
 
 const char*
@@ -212,12 +262,19 @@ gui_init (dt_lib_module_t *self)
   GtkWidget *w;
   GtkWidget *vbox1, *hbox1;
   dt_lib_scanner_t *lib;
+  const struct dt_scanner_t *scanner;
 
   self->widget = gtk_vbox_new(TRUE, 5);
   self->data = malloc(sizeof(dt_lib_scanner_t));
   memset(self->data,0,sizeof(dt_lib_scanner_t));
 
   lib = self->data;
+
+  /* initialize scanner listener */
+  lib->data.scanner_listener = malloc(sizeof(dt_scanner_listener_t));
+  memset(lib->data.scanner_listener, 0, sizeof(dt_scanner_listener_t));
+  lib->data.scanner_listener->opaque = self;
+  lib->data.scanner_listener->on_state_changed = _scanner_on_scanner_state_changed;
 
   vbox1 = self->widget = gtk_vbox_new(FALSE, 5);
   hbox1 = gtk_hbox_new(FALSE, 5);
@@ -235,7 +292,7 @@ gui_init (dt_lib_module_t *self)
                     self);
 
   /* Add refresh button */
-  w = dtgtk_button_new(dtgtk_cairo_paint_refresh, 0);
+  lib->gui.refresh = w = dtgtk_button_new(dtgtk_cairo_paint_refresh, 0);
   gtk_box_pack_start(GTK_BOX(hbox1), w, TRUE, TRUE, 0);
   g_object_set(G_OBJECT(w), "tooltip-text", _("search for scanners"),
                (char *)NULL);
@@ -246,21 +303,32 @@ gui_init (dt_lib_module_t *self)
   gtk_box_pack_start(GTK_BOX(vbox1), GTK_WIDGET(hbox1), TRUE, TRUE, 0);
 
   /* Add scan preview button */
-  w = gtk_button_new_with_label(_("Scan preview"));
+  lib->gui.preview = w = gtk_button_new_with_label(_("Scan preview"));
   gtk_box_pack_start(GTK_BOX(vbox1), w, TRUE, TRUE, 0);
-  /* TODO: Add signal handler */
+  g_signal_connect(G_OBJECT(w), "clicked",
+                   G_CALLBACK(_scanner_scan_preview_click), self);
 
   /* we want to act upon scan view scanner changes */
   dt_control_signal_connect(darktable.signals, DT_SIGNAL_VIEW_SCAN_ACTIVE_SCANNER_CHANGED,
                             G_CALLBACK(_scanner_view_scan_active_scanner_changed), self);
 
-  /* rebuild scanner options */
-  _scanner_rebuild_scanner_options(self, dt_view_scan_get_scanner(darktable.view_manager));
+  /* intialize ui from current scanner */
+  scanner = dt_view_scan_get_scanner(darktable.view_manager);
+  dt_scanner_add_listener(scanner, lib->data.scanner_listener);
+  _scanner_rebuild_scanner_options(self, scanner);
+  _scanner_on_scanner_state_changed(scanner, dt_scanner_state(scanner), self);
+
 }
 
 void
 gui_cleanup (dt_lib_module_t *self)
 {
+  dt_lib_scanner_t *lib;
+
+  lib = ((dt_lib_module_t *)self)->data;
+
+  g_free(lib->data.scanner_listener);
+
   /* disconnect from signals */
   dt_control_signal_disconnect(darktable.signals, G_CALLBACK(_scanner_view_scan_active_scanner_changed), self);
 
