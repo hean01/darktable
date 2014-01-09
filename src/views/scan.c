@@ -126,6 +126,7 @@ void
 expose(dt_view_t *self, cairo_t *cr, int32_t width_i, int32_t height_i,
        int32_t pointerx, int32_t pointery)
 {
+  double sr, dr, scale;
   GList *modules;
   dt_lib_module_t *module;
   dt_scan_view_t *view;
@@ -142,13 +143,29 @@ expose(dt_view_t *self, cairo_t *cr, int32_t width_i, int32_t height_i,
   preview = (cairo_surface_t *)dt_scanner_preview(view->scanner);
   if (preview)
   {
+    cairo_save(cr);
     cairo_rectangle(cr, 0, 0, width_i, height_i);
-    cairo_set_source_surface (cr, preview, 0, 0);
+
+    /* center */
+    cairo_translate(cr, width_i*0.5, height_i*0.5);
+
+    /* and scale to fit view */
+    sr = width_i / (double)height_i;
+    dr = cairo_image_surface_get_width(preview) / (double)cairo_image_surface_get_height(preview);
+    if (sr < dr)
+      scale = (double)width_i / cairo_image_surface_get_width(preview);
+    else
+      scale = (double)height_i / cairo_image_surface_get_height(preview);
+    cairo_scale(cr, scale, scale);
+
+    /* render preview */
+    cairo_set_source_surface (cr, preview,
+                              -(cairo_image_surface_get_width(preview) * 0.5),
+                              -(cairo_image_surface_get_height(preview) * 0.5));
     cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_FAST);
-    cairo_fill_preserve(cr);
-    cairo_set_line_width(cr, 1.0);
-    cairo_set_source_rgb (cr, .3, .3, .3);
-    cairo_stroke(cr);
+    cairo_fill(cr);
+
+    cairo_restore(cr);
   }
 
   /* dispatch post expose to view modules */
