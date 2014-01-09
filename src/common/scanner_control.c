@@ -205,7 +205,7 @@ _scanner_option_set_int_value_by_name(const dt_scanner_t *self, const char *name
 }
 
 
-void
+static void
 _scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
 {
   GList *listener;
