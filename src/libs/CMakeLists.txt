@@ -79,7 +79,8 @@ endif(GPHOTO2_FOUND)
 # check if gphoto2 found and add build of camera modules...
 if(SANE_FOUND)
 	add_library(scanner MODULE "scanner.c")
-	set(MODULES ${MODULES} scanner)
+	add_library(scan MODULE "scan.c")
+	set(MODULES ${MODULES} scanner scan)
 endif(SANE_FOUND)
 
 # the modules specific to map mode
