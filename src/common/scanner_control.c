@@ -180,6 +180,27 @@ _scanner_option_set_bool_value_by_name(const dt_scanner_t *self, const char *nam
   return 0;
 }
 
+static int
+_scanner_option_set_int_value_by_name(const dt_scanner_t *self, const char *name, SANE_Int ival)
+{
+  int idx;
+  SANE_Status res;
+
+  idx = _scanner_option_index_by_name(self, name);
+  if (idx == -1)
+    return 1;
+
+  res = sane_control_option(self->handle, idx, SANE_ACTION_SET_VALUE, &ival, NULL);
+  if (res != SANE_STATUS_GOOD)
+  {
+    fprintf(stderr, "[scanner_control] Failed to set int option '%s' value to %d with reason: %s\n",
+            name, ival, sane_strstatus(res));
+    return 1;
+  }
+
+  return 0;
+}
+
 
 void
 _scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
@@ -479,6 +500,7 @@ dt_scanner_scan_preview(const struct dt_scanner_t *self)
 
   /* setup scan preview options */
   _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
+  _scanner_option_set_int_value_by_name(self, "resolution", 200);
 
   /* get scan parameters */
   res = sane_get_parameters(self->handle, &params);
