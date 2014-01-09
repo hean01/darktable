@@ -23,8 +23,11 @@
 
 #include <sane/sane.h>
 
+#include "control/conf.h"
 #include "common/darktable.h"
 #include "common/scanner_control.h"
+
+#define CONFIG_KEY "scan"
 
 typedef struct dt_scanner_t
 {
@@ -238,6 +241,25 @@ _scanner_dispatch_scan_preview_update(const dt_scanner_t *self)
   }
 }
 
+static void
+_scanner_control_on_option_changed(GtkWidget *w, gpointer opaque)
+{
+  guint hash;
+  char *name, *value;
+  char key[512];
+  struct dt_scanner_t *scanner;
+
+  scanner = (dt_scanner_t *)opaque;
+
+  name = g_object_get_data(G_OBJECT(w), "option-name");
+  value = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w));
+
+  hash = g_str_hash(dt_scanner_name(scanner));
+  g_snprintf(key, 512, "%s/devices/%x/%s",CONFIG_KEY, hash, name);
+
+  dt_conf_set_string(key, value);
+}
+
 struct dt_scanner_control_t *
 dt_scanner_control_new()
 {
@@ -363,13 +385,28 @@ gboolean
 dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name,
                                 GtkWidget **label, GtkWidget **control)
 {
-  int i, cnt;
+  guint hash;
+  int i, cnt, known_scanner;
+  char key[512], device_config_key[128];
   char buf[128];
   const SANE_Int *ival;
   const SANE_String_Const *sval;
   SANE_Int current_ival;
   char *current_sval;
   const SANE_Option_Descriptor *option;
+
+  /* do we have stored config values for this scanner */
+  hash = g_str_hash(dt_scanner_name(self));
+  g_snprintf(device_config_key, 128, "%s/devices/%x",CONFIG_KEY, hash);
+  known_scanner = dt_conf_key_exists(device_config_key);
+
+  /* if we never seen this scanner before lets add device model
+     subkey for easy recognition */
+  if (!known_scanner)
+  {
+    g_snprintf(key, 512, "%s/model", device_config_key);
+    dt_conf_set_string(key, dt_scanner_model(self));
+  }
 
   /* find option by name */
   option = _scanner_find_option_desc_by_name(self, name);
@@ -393,8 +430,20 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     /* handle list of strings */
     cnt = 0;
 
-    /* get current selected string value of option */
-    current_sval = _scanner_option_get_string_value_by_name (self, name);
+    /* lookup if we have a stored value for this scanner option otherwise
+       get the value from scanner to be selected */
+    g_snprintf(key, 512, "%s/%s", device_config_key, name);
+    if (dt_conf_key_exists(key))
+    {
+      /* get stored config value for this option */
+      current_sval = dt_conf_get_string(key);
+    }
+    else
+    {
+      /* get actual value from scanner and store it to config */
+      current_sval = _scanner_option_get_string_value_by_name (self, name);
+      dt_conf_set_string(key, current_sval);
+    }
 
     sval = option->constraint.string_list;
     while (*sval)
@@ -410,8 +459,6 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
       sval++;
     }
 
-    /* TODO: add signal handler for change */
-
     /* cleanup */
     g_free(current_sval);
   }
@@ -419,8 +466,21 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
   {
     /* handle list of integers */
 
-    /* get current selected int value of option */
-    current_ival = _scanner_option_get_int_value_by_name(self, name);
+    /* lookup if we have a stored value for this scanner option otherwise
+       get the value from scanner to be selected */
+    g_snprintf(key, 512, "%s/%s", device_config_key, name);
+    if (dt_conf_key_exists(key))
+    {
+      /* get stored config value for this option */
+      current_ival = atoi(dt_conf_get_string(key));
+    }
+    else
+    {
+      /* get actual value from scanner and store it to config */
+      current_ival = _scanner_option_get_int_value_by_name (self, name);
+      g_snprintf(buf, 128, "%d", current_ival);
+      dt_conf_set_string(key, buf);
+    }
 
     ival = option->constraint.word_list;
     cnt = *ival;
@@ -432,9 +492,6 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
       if (*ival == current_ival)
         gtk_combo_box_set_active(GTK_COMBO_BOX(*control), i);
     }
-
-    /* TODO: add signal handler for change */
-
   }
   else
   {
@@ -448,6 +505,11 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
 
     return FALSE;
   }
+
+  /* connect control option signal handler */
+  g_object_set_data(G_OBJECT(*control), "option-name", (gpointer)name);
+  g_signal_connect(G_OBJECT(*control), "changed",
+                   G_CALLBACK(_scanner_control_on_option_changed), (gpointer)self);
 
   return TRUE;
 }
