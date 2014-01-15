@@ -57,6 +57,10 @@ int32_t dt_scanner_scan_job_run(dt_job_t *job)
 
   t = (dt_scanner_scan_job_t *)job->param;
 
+  /* make sure that filename used for expansion is used, in this case
+     all scans are tiff files. */
+  dt_import_session_set_filename(t->session, "scan.tiff");
+
   /* TODO: for each region execute a scan */
 
   /* setup scanner job and perform a scan */
