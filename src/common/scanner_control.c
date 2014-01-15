@@ -274,7 +274,7 @@ _scanner_set_options_from_config(const dt_scanner_t *self)
   options = dt_conf_all_string_entries(device_key);
   if (options == NULL)
   {
-    fprintf(stderr, "[scanner_control] No configuration available for scanner %x",
+    fprintf(stderr, "[scanner_control] No configuration available for scanner %x\n",
             self->hash);
     return;
   }
