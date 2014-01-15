@@ -86,7 +86,7 @@ _scan_view_set_job_code(const dt_view_t *self, const char *name)
 {
   dt_scan_view_t *view;
   view = (dt_scan_view_t *)self->data;
-  dt_conf_set_string("/scan/jobcode", name);
+  dt_conf_set_string("scan/jobcode", name);
   dt_import_session_set_name(view->session, name);
 }
 
@@ -241,9 +241,9 @@ enter(dt_view_t *self)
 
   /* create a session instance */
   view->session = dt_import_session_new();
-  if (!dt_conf_key_exists("/scan/jobcode"))
-    dt_conf_set_string("/scan/jobcode", _("noname"));
-  dt_import_session_set_name(view->session, dt_conf_get_string("/scan/jobcode"));
+  if (!dt_conf_key_exists("scan/jobcode"))
+    dt_conf_set_string("scan/jobcode", _("noname"));
+  dt_import_session_set_name(view->session, dt_conf_get_string("scan/jobcode"));
 }
 
 void
