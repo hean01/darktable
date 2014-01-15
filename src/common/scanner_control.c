@@ -258,10 +258,36 @@ static void
 _scanner_option_set_value(const dt_scanner_t *self,
                           const char *name, const char *value)
 {
-  fprintf(stderr, "[scanner_control] setting option '%s' to value '%s'\n", name, value);
-  /* TODO: lookup up option descriptor for name */
-  /* TODO: convert value to option type value */
-  /* TODO: set the specific value */
+  int idx;
+  SANE_Status res;
+  SANE_Int ival;
+  const SANE_Option_Descriptor *desc;
+
+  /* get index of option name */
+  idx = _scanner_option_index_by_name(self, name);
+  if (idx == -1)
+    return;
+
+  /* get option descriptor and set converted value */
+  desc = _scanner_find_option_desc_by_name(self, name);
+  switch(desc->type)
+  {
+  case SANE_TYPE_STRING:
+    res = sane_control_option(self->handle, idx, SANE_ACTION_SET_VALUE, (char *)value, NULL);
+    break;
+  case SANE_TYPE_INT:
+    ival = atoi(value);
+    res = sane_control_option(self->handle, idx, SANE_ACTION_SET_VALUE, &ival, NULL);
+    break;
+  default:
+    fprintf(stderr, "[scanner_control] Unsupported value type %d", desc->type);
+    return;
+  }
+
+  if (res != SANE_STATUS_GOOD)
+    fprintf(stderr, "[scanner_control] Failed to set option '%s' value to '%s' with reason: %s\n",
+            name, value, sane_strstatus(res));
+
 }
 
 static void
