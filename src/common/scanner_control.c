@@ -258,6 +258,7 @@ static void
 _scanner_option_set_value(const dt_scanner_t *self,
                           const char *name, const char *value)
 {
+  fprintf(stderr, "[scanner_control] setting option '%s' to value '%s'\n", name, value);
   /* TODO: lookup up option descriptor for name */
   /* TODO: convert value to option type value */
   /* TODO: set the specific value */
@@ -284,8 +285,10 @@ _scanner_set_options_from_config(const dt_scanner_t *self)
   {
     cse = (dt_conf_string_entry_t *)item->data;
     _scanner_option_set_value(self, cse->key, cse->value);
+    g_free(cse->key);
+    g_free(cse->value);
     g_free(cse);
-    options = g_slist_remove(options, item);
+    options = g_slist_delete_link(options, item);
     item = g_slist_last(options);
   }
 }
