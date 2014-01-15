@@ -57,7 +57,16 @@ _scanner_view_scan_active_scanner_changed(gpointer instance, const struct dt_sca
 static void
 _scan_on_scan_clicked(GtkWidget *w, gpointer opaque)
 {
-  dt_control_log(_("Starting scanning batch."));
+  dt_job_t j;
+  const char *jobcode;
+  const struct dt_scanner_t *scanner;
+
+  scanner = dt_view_scan_get_scanner(darktable.view_manager);
+  jobcode = dt_view_scan_get_job_code(darktable.view_manager);
+
+  /* create scan job and put on job queue */
+  dt_scanner_scan_job_init(&j, scanner, jobcode);
+  dt_control_add_job(darktable.control, &j);
 }
 
 /* Called when state of active scanner is changed. */
