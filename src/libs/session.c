@@ -54,7 +54,7 @@ name ()
 
 uint32_t views()
 {
-  return DT_VIEW_TETHERING;
+  return DT_VIEW_TETHERING | DT_VIEW_SCAN;
 }
 
 uint32_t container()
@@ -77,11 +77,27 @@ position ()
 static void
 create_callback(GtkButton *button, gpointer user_data)
 {
-  dt_lib_module_t *self=(dt_lib_module_t *)user_data;
-  dt_lib_session_t *lib=self->data;
+  const dt_view_t *cv;
+  dt_lib_module_t *self;
+  dt_lib_session_t *lib;
 
-  dt_conf_set_string("plugins/session/jobcode", gtk_entry_get_text(lib->gui.entry1) );
-  dt_view_tethering_set_job_code(darktable.view_manager, gtk_entry_get_text( lib->gui.entry1 ) );
+  self =(dt_lib_module_t *)user_data;
+  lib = (dt_lib_session_t *)self->data;
+  cv = dt_view_manager_get_current_view(darktable.view_manager);
+
+  dt_conf_set_string("plugins/session/jobcode", gtk_entry_get_text(lib->gui.entry1));
+
+  switch (cv->view(cv))
+  {
+  case DT_VIEW_TETHERING:
+    dt_view_tethering_set_job_code(darktable.view_manager,
+                                   gtk_entry_get_text(lib->gui.entry1));
+    break;
+  case DT_VIEW_SCAN:
+    dt_view_scan_set_job_code(darktable.view_manager,
+                              gtk_entry_get_text(lib->gui.entry1));
+    break;
+  }
 }
 
 void
