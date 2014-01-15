@@ -23,6 +23,7 @@
 #include "libs/lib.h"
 #include "control/control.h"
 #include "common/darktable.h"
+#include "common/import_session.h"
 #include "common/scanner_control.h"
 
 DT_MODULE(1)
@@ -30,6 +31,7 @@ DT_MODULE(1)
 typedef struct dt_scan_view_t
 {
   struct dt_scanner_t *scanner;
+  struct dt_import_session_t *session;
   dt_scanner_listener_t *scanner_listener;
 }
 dt_scan_view_t;
@@ -70,6 +72,22 @@ _scan_view_get_scanner(const dt_view_t *self)
   return view->scanner;
 }
 
+static const char *
+_scan_view_get_job_code(const dt_view_t *self)
+{
+  dt_scan_view_t *view;
+  view = (dt_scan_view_t *)self->data;
+  return dt_import_session_name(view->session);
+}
+
+static void
+_scan_view_set_job_code(const dt_view_t *self, const char *name)
+{
+  dt_scan_view_t *view;
+  view = (dt_scan_view_t *)self->data;
+  dt_import_session_set_name(view->session, name);
+}
+
 static void
 _scan_view_on_preview_update(const struct dt_scanner_t *scanner, void *opaque)
 {
@@ -103,6 +121,8 @@ init(dt_view_t *self)
   darktable.view_manager->proxy.scan.view = self;
   darktable.view_manager->proxy.scan.set_scanner = _scan_view_set_scanner;
   darktable.view_manager->proxy.scan.get_scanner = _scan_view_get_scanner;
+  darktable.view_manager->proxy.scan.set_job_code = _scan_view_set_job_code;
+  darktable.view_manager->proxy.scan.get_job_code = _scan_view_get_job_code;
 
   /* create scanner listener */
   view->scanner_listener = malloc(sizeof(dt_scanner_listener_t));
@@ -214,10 +234,11 @@ try_enter(dt_view_t *self)
 void
 enter(dt_view_t *self)
 {
-#if 0
   dt_scan_view_t *view;
   view = (dt_scan_view_t *)self->data;
-#endif
+
+  /* create a session instance */
+  view->session = dt_import_session_new();
 }
 
 void
@@ -227,7 +248,9 @@ leave(dt_view_t *self)
   view = (dt_scan_view_t *)self->data;
 
   /* remove view as listener of scanner */
-  dt_scanner_add_listener(view->scanner, view->scanner_listener);
+  dt_scanner_remove_listener(view->scanner, view->scanner_listener);
+
+  dt_import_session_destroy(view->session);
 }
 
 void
