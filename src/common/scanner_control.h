@@ -41,6 +41,13 @@ typedef struct dt_scanner_listener_t
   void (*on_scan_preview_update)(const struct dt_scanner_t *scanner, void *opaque);
 } dt_scanner_listener_t;
 
+/** \brief a scan job */
+typedef struct dt_scanner_job_t
+{
+  char *destination_filename;
+  struct { double x, y, w, h; } region;
+} dt_scanner_job_t;
+
 struct dt_scanner_control_t *dt_scanner_control_new();
 void dt_scanner_control_destroy(struct dt_scanner_control_t *self);
 
@@ -73,4 +80,7 @@ dt_scanner_state_t dt_scanner_state(const struct dt_scanner_t *self);
 const cairo_surface_t *dt_scanner_preview(const struct dt_scanner_t *self);
 /** \brief Perform preview scan into preview surface. */
 void dt_scanner_scan_preview(const struct dt_scanner_t *self);
+/** \brief Starts a scan job for scanner. */
+void dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job);
+
 #endif

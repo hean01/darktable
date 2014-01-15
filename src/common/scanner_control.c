@@ -31,6 +31,7 @@
 
 typedef struct dt_scanner_t
 {
+  guint hash;
   dt_scanner_state_t state;
   const SANE_Device *device;
   SANE_Handle handle;
@@ -54,14 +55,15 @@ _scanner_ctor(const SANE_Device *device)
   scanner = malloc(sizeof(dt_scanner_t));
   memset(scanner, 0, sizeof(dt_scanner_t));
   scanner->device = device;
+  scanner->hash = g_str_hash(dt_scanner_name(scanner));
   return scanner;
 }
 
 
 static void
-_scanner_dtor(dt_scanner_t *self)
+_scanner_dtor(gpointer self)
 {
-  dt_scanner_close(self);
+  dt_scanner_close((dt_scanner_t *)self);
   free(self);
 }
 
@@ -69,13 +71,7 @@ _scanner_dtor(dt_scanner_t *self)
 static void
 _scanner_control_remove_devices(dt_scanner_control_t *self)
 {
-  GList *device;
-  while (self->devices)
-  {
-    device = g_list_last(self->devices);
-    _scanner_dtor(device->data);
-    self->devices = g_list_remove(self->devices, device);
-  }
+  g_list_free_full(self->devices, _scanner_dtor);
   self->devices = NULL;
 }
 
@@ -244,7 +240,6 @@ _scanner_dispatch_scan_preview_update(const dt_scanner_t *self)
 static void
 _scanner_control_on_option_changed(GtkWidget *w, gpointer opaque)
 {
-  guint hash;
   char *name, *value;
   char key[512];
   struct dt_scanner_t *scanner;
@@ -254,10 +249,45 @@ _scanner_control_on_option_changed(GtkWidget *w, gpointer opaque)
   name = g_object_get_data(G_OBJECT(w), "option-name");
   value = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w));
 
-  hash = g_str_hash(dt_scanner_name(scanner));
-  g_snprintf(key, 512, "%s/devices/%x/%s",CONFIG_KEY, hash, name);
+  g_snprintf(key, 512, "%s/devices/%x/%s",CONFIG_KEY, scanner->hash, name);
 
   dt_conf_set_string(key, value);
+}
+
+static void
+_scanner_option_set_value(const dt_scanner_t *self,
+                          const char *name, const char *value)
+{
+  /* TODO: lookup up option descriptor for name */
+  /* TODO: convert value to option type value */
+  /* TODO: set the specific value */
+}
+
+static void
+_scanner_set_options_from_config(const dt_scanner_t *self)
+{
+  GSList *options , *item;
+  dt_conf_string_entry_t *cse;
+  char device_key[512];
+
+  g_snprintf(device_key, 512, "%s/devices/%x", CONFIG_KEY, self->hash);
+  options = dt_conf_all_string_entries(device_key);
+  if (options == NULL)
+  {
+    fprintf(stderr, "[scanner_control] No configuration available for scanner %x",
+            self->hash);
+    return;
+  }
+
+  item = g_slist_last(options);
+  while (item)
+  {
+    cse = (dt_conf_string_entry_t *)item->data;
+    _scanner_option_set_value(self, cse->key, cse->value);
+    g_free(cse);
+    options = g_slist_remove(options, item);
+    item = g_slist_last(options);
+  }
 }
 
 struct dt_scanner_control_t *
@@ -385,7 +415,6 @@ gboolean
 dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name,
                                 GtkWidget **label, GtkWidget **control)
 {
-  guint hash;
   int i, cnt, known_scanner;
   char key[512], device_config_key[128];
   char buf[128];
@@ -396,8 +425,7 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
   const SANE_Option_Descriptor *option;
 
   /* do we have stored config values for this scanner */
-  hash = g_str_hash(dt_scanner_name(self));
-  g_snprintf(device_config_key, 128, "%s/devices/%x",CONFIG_KEY, hash);
+  g_snprintf(device_config_key, 128, "%s/devices/%x",CONFIG_KEY, self->hash);
   known_scanner = dt_conf_key_exists(device_config_key);
 
   /* if we never seen this scanner before lets add device model
@@ -635,6 +663,21 @@ bail_out:
   g_free(buf);
   /* reset scan preview options */
   _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
+
+  _scanner_change_state(self, SCANNER_STATE_READY);
+}
+
+void
+dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job)
+{
+  _scanner_change_state(self, SCANNER_STATE_BUSY);
+
+  /* set options from configuration for specified scanner */
+  _scanner_set_options_from_config(self);
+
+  /* TODO: detect if scanner supports IR channel */
+
+  /* TODO: perform scan, and use IR if enabled for dust removal */
 
   _scanner_change_state(self, SCANNER_STATE_READY);
 }
