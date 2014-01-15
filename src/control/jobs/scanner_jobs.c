@@ -34,3 +34,40 @@ dt_scanner_preview_job_init(dt_job_t *job, const struct dt_scanner_t *scanner)
   dt_scanner_preview_job_t *t = (dt_scanner_preview_job_t *)job->param;
   t->scanner = scanner;
 }
+
+
+void
+dt_scanner_scan_job_init(dt_job_t *job, const struct dt_scanner_t *scanner,
+                         const char *jobcode)
+{
+  dt_scanner_scan_job_t *t;
+  dt_control_job_init(job, "scan");
+  job->execute = &dt_scanner_scan_job_run;
+  t = (dt_scanner_scan_job_t *)job->param;
+  t->scanner = scanner;
+  t->session = dt_import_session_new();
+  dt_import_session_set_name(t->session, jobcode);
+}
+
+
+int32_t dt_scanner_scan_job_run(dt_job_t *job)
+{
+  dt_scanner_scan_job_t *t;
+  dt_scanner_job_t sj;
+
+  t = (dt_scanner_scan_job_t *)job->param;
+
+  /* TODO: for each region execute a scan */
+
+  /* setup scanner job and perform a scan */
+  dt_import_session_path(t->session, FALSE);
+  sj.destination_filename = g_strdup(dt_import_session_filename(t->session, FALSE));
+  dt_scanner_scan(t->scanner, &sj);
+  g_free(sj.destination_filename);
+
+  /* TODO: lets import scanned image into darktable */
+
+  /* cleanup */
+  dt_import_session_destroy(t->session);
+  return 0;
+}

@@ -21,6 +21,7 @@
 #include <inttypes.h>
 
 #include "control/control.h"
+#include "common/import_session.h"
 #include "common/scanner_control.h"
 
 typedef struct dt_scanner_preview_job_t
@@ -29,5 +30,15 @@ typedef struct dt_scanner_preview_job_t
 } dt_scanner_preview_job_t;
 int32_t dt_scanner_preview_job_run(dt_job_t *job);
 void dt_scanner_preview_job_init(dt_job_t *job, const struct dt_scanner_t *scanner);
+
+typedef struct dt_scanner_scan_job_t
+{
+  const struct dt_scanner_t *scanner;
+  struct dt_import_session_t *session;
+} dt_scanner_scan_job_t;
+/* TODO: Add support of initialize job with regions, batch scan */
+void dt_scanner_scan_job_init(dt_job_t *job, const struct dt_scanner_t *scanner,
+                                 const char *jobcode);
+int32_t dt_scanner_scan_job_run(dt_job_t *job);
 
 #endif
