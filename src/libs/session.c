@@ -74,6 +74,24 @@ position ()
   return 999;
 }
 
+static const char *
+_view_get_job_code()
+{
+  const dt_view_t *cv;
+  cv = dt_view_manager_get_current_view(darktable.view_manager);
+
+  switch (cv->view(cv))
+  {
+  case DT_VIEW_TETHERING:
+    return dt_conf_get_string("tethering/jobcode");
+    break;
+  case DT_VIEW_SCAN:
+    return dt_conf_get_string("scan/jobcode");
+    break;
+  }
+  return NULL;
+}
+
 static void
 create_callback(GtkButton *button, gpointer user_data)
 {
@@ -84,8 +102,6 @@ create_callback(GtkButton *button, gpointer user_data)
   self =(dt_lib_module_t *)user_data;
   lib = (dt_lib_session_t *)self->data;
   cv = dt_view_manager_get_current_view(darktable.view_manager);
-
-  dt_conf_set_string("plugins/session/jobcode", gtk_entry_get_text(lib->gui.entry1));
 
   switch (cv->view(cv))
   {
@@ -137,7 +153,8 @@ gui_init (dt_lib_module_t *self)
   g_signal_connect (G_OBJECT (lib->gui.button1), "clicked",
                     G_CALLBACK (create_callback), self);
 
-  gtk_entry_set_text(lib->gui.entry1, dt_conf_get_string("plugins/session/jobcode") );
+  /* intialize entry with current jobcode from view */
+  gtk_entry_set_text(lib->gui.entry1, _view_get_job_code());
 
 }
 
