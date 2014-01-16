@@ -21,8 +21,11 @@
 int32_t
 dt_scanner_preview_job_run(dt_job_t *job)
 {
+  int res;
   dt_scanner_preview_job_t *t=(dt_scanner_preview_job_t*)job->param;
-  dt_scanner_scan_preview(t->scanner);
+  res = dt_scanner_scan_preview(t->scanner);
+  if (res != 0)
+    dt_control_log(_("Scan preview failed, see console for more information."));
   return 0;
 }
 

@@ -79,8 +79,8 @@ dt_scanner_state_t dt_scanner_state(const struct dt_scanner_t *self);
 /** \brief Get scanner preview cairo surface */
 const cairo_surface_t *dt_scanner_preview(const struct dt_scanner_t *self);
 /** \brief Perform preview scan into preview surface. */
-void dt_scanner_scan_preview(const struct dt_scanner_t *self);
+int dt_scanner_scan_preview(const struct dt_scanner_t *self);
 /** \brief Starts a scan job for scanner. */
-void dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job);
+int dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job);
 
 #endif

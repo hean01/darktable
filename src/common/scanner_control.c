@@ -47,6 +47,57 @@ typedef struct dt_scanner_control_t
   GList *devices;
 } dt_scanner_control_t;
 
+typedef struct dt_scan_backend_t
+{
+  const dt_scanner_t *scanner;
+  void *backend_data;
+  int (*init)(struct dt_scan_backend_t *self, SANE_Parameters params, const char *filename);
+  void (*cleanup)(struct dt_scan_backend_t *self, const char *filename);
+  void (*scanline)(struct dt_scan_backend_t *self, SANE_Parameters params, float *scanline);
+} dt_scan_backend_t;
+
+
+static void _scanner_dispatch_scan_preview_update(const dt_scanner_t *self);
+
+
+static int
+_backend_cairo_init(dt_scan_backend_t *self, SANE_Parameters params, const char *filename)
+{
+  if (self->scanner->preview)
+    cairo_surface_destroy(self->scanner->preview);
+  /* Always use RGB24 format of cairo surface */
+  ((dt_scanner_t *)self->scanner)->preview = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
+                                                               params.pixels_per_line, params.lines);
+  self->backend_data = cairo_image_surface_get_data(self->scanner->preview);
+  return 0;
+}
+
+static void
+_backend_cairo_scanline(dt_scan_backend_t *self, SANE_Parameters params, float *scanline)
+{
+  int i;
+  uint8_t *pixels;
+  pixels = self->backend_data;
+
+  /* scanline is always RGBA independent of what format is used to scan */
+
+  for (i = 0; i < params.pixels_per_line * 4; i+=4)
+  {
+    pixels[3] = 0x00;
+    pixels[0] = 0xff * scanline[i + 0];
+    pixels[1] = 0xff * scanline[i + 1];
+    pixels[2] = 0xff * scanline[i + 2];
+
+    pixels += 4;
+  }
+  self->backend_data = pixels; 
+
+  /* signal ui to update */
+  cairo_surface_mark_dirty(self->scanner->preview);
+  _scanner_dispatch_scan_preview_update(self->scanner);
+}
+
+
 
 static dt_scanner_t *
 _scanner_ctor(const SANE_Device *device)
@@ -158,6 +209,7 @@ _scanner_option_get_int_value_by_name(const dt_scanner_t *self, const char *name
   return ival;
 }
 
+#if 0
 static int
 _scanner_option_set_bool_value_by_name(const dt_scanner_t *self, const char *name, gboolean bval)
 {
@@ -179,6 +231,7 @@ _scanner_option_set_bool_value_by_name(const dt_scanner_t *self, const char *nam
   return 0;
 }
 
+
 static int
 _scanner_option_set_int_value_by_name(const dt_scanner_t *self, const char *name, SANE_Int ival)
 {
@@ -199,7 +252,7 @@ _scanner_option_set_int_value_by_name(const dt_scanner_t *self, const char *name
 
   return 0;
 }
-
+#endif
 
 static void
 _scanner_change_state(const dt_scanner_t *self, dt_scanner_state_t state)
@@ -601,102 +654,228 @@ dt_scanner_preview(const struct dt_scanner_t *self)
   return self->preview;
 }
 
-
-void
-dt_scanner_scan_preview(const struct dt_scanner_t *self)
+/* convert input buffer 8bit grayscale into RGBA float buffer
+   returns number of pixels processed.
+*/
+static int
+_scanline_gray8(const SANE_Parameters *params, uint8_t *buf, size_t ipcnt, float *out, size_t opcnt)
 {
-  int i, byte_count;
+  int i;
+  int pcnt;
+  float *pout;
+
+  /* how many pixels can we write into out */
+  pcnt = ipcnt;
+  if (pcnt > opcnt)
+    pcnt = opcnt;
+
+  /* convert 8bit grayscale data into RGBA float values */
+  pout = out;
+  for (i = 0; i < pcnt; i++)
+  {
+    pout[0] = pout[1] = pout[2] = buf[i] / (float)0xff;
+    pout[3] = 0.0f;
+    pout += 4;
+  }
+  return pcnt;
+}
+
+static int
+_scanline_rgb8(const SANE_Parameters *params, uint8_t *buf, size_t ipcnt, float *out, size_t opcnt)
+{
+  int i;
+  int pcnt;
+  float *pout;
+
+  /* how many pixels can we write into out */
+  pcnt = ipcnt;
+  if (pcnt > opcnt)
+    pcnt = opcnt;
+
+  /* convert 8bit RGB data into RGBA float values */
+  pout = out;
+  for (i = 0; i < pcnt*3; i+=3)
+  {
+    pout[0] = buf[i+0] / (float)0xff;
+    pout[1] = buf[i+1] / (float)0xff;
+    pout[2] = buf[i+2] / (float)0xff;
+    pout[3] = 0.0f;
+    pout += 4;
+  }
+  return pcnt;
+}
+
+static int
+_scanner_scan_to_backend(const struct dt_scanner_t *self,
+                         dt_scan_backend_t *backend, const char *filename)
+{
+  int result;
   SANE_Int len;
   SANE_Status res;
   SANE_Parameters params;
-  uint8_t *pixels;
   uint8_t *buf;
- 
-  buf = pixels = NULL;
-  byte_count = 0;
+  int want_bytes;
+  int scanline_fill;
+  int pixels_processed, bytes_left;
+  float *scanline;
 
-  _scanner_change_state(self, SCANNER_STATE_BUSY);
-
-  /* setup scan preview options */
-  _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
-  _scanner_option_set_int_value_by_name(self, "resolution", 200);
+  backend->scanner = self;
+  result = 0;
+  buf = NULL;
+  scanline = NULL;
 
   /* get scan parameters */
   res = sane_get_parameters(self->handle, &params);
   if (res != SANE_STATUS_GOOD) {
     fprintf(stderr, "[scanner_control] Failed to get preview scan parameters with reason: %s\n",
             sane_strstatus(res));
-    goto bail_out;
+    return 1;
   }
-  fprintf(stderr,"[scanner_control] Params: format=%d, bytes_per_line=%d, pixels_per_line=%d, lines=%d, depth=%d\n",
+
+  fprintf(stderr,"[scanner_control] Final scan params: format=%d, bytes_per_line=%d, pixels_per_line=%d, lines=%d, depth=%d\n",
           params.format, params.bytes_per_line, params.pixels_per_line,
           params.lines, params.depth);
 
-  /* start scan preview */
+  /* verify supported params */
+  if (params.format != SANE_FRAME_GRAY && params.format != SANE_FRAME_RGB)
+  {
+    fprintf(stderr, "[scanner_control] Unsupported frame type %d\n", params.format);
+    return 1;
+  }
+
+  if (params.depth != 8)
+  {
+    fprintf(stderr, "[scanner_control] Unsupported depth %d\n", params.depth);
+    return 1;
+  }
+
+  /* initialize backend */
+  if (backend->init)
+    backend->init(backend, params, filename);
+
+  /* start scan */
   res = sane_start(self->handle);
   if (res != SANE_STATUS_GOOD)
   {
-    fprintf(stderr, "[scanner_control] Failed to start preview scan with reason: %s\n",
+    fprintf(stderr, "[scanner_control] Failed to start scan with reason: %s\n",
             sane_strstatus(res));
-    goto bail_out;
+    return 1;
   }
 
-  /* initialize preview cairo surface */
-  if (self->preview)
-    cairo_surface_destroy(self->preview);
-
-  ((dt_scanner_t *)self)->preview = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
-                                                               params.pixels_per_line, params.lines);
-
-  pixels = cairo_image_surface_get_data(self->preview);
-
-  /* start read data from scanner */
-  /* FIXME: dont assume data is 8bit and RGB interleaved */
-  buf = g_malloc(params.bytes_per_line);
   sane_set_io_mode(self->handle, 0);
-
+  buf = g_malloc(params.bytes_per_line);
+  scanline = g_malloc(sizeof(float) * params.pixels_per_line * 4);
+  scanline_fill = 0;
+    
+  /* read data from scanner */
+  res = SANE_STATUS_GOOD;
+  bytes_left = 0;
+  pixels_processed = 0;
+  want_bytes = params.bytes_per_line;
   while (res != SANE_STATUS_EOF)
   {
-    /* read scan line and update cairo surface */
-    res = sane_read(self->handle, buf, params.bytes_per_line, &len);
+    /* read bytes into buffer from scanner */
+    res = sane_read(self->handle, buf + bytes_left, want_bytes, &len);
+    
     if (res != SANE_STATUS_GOOD && res != SANE_STATUS_EOF)
     {
       fprintf(stderr, "[scanner_control] Failed to read data from preview scan with reason: %s\n",
               sane_strstatus(res));
+      result = 1;
       goto bail_out;
     }
 
-    /* write pixels into surface */
-    for (i = 0; i < len; i++)
+    /* convert and fill scanned pixels into scanline */
+    len += bytes_left;
+    bytes_left = len;
+    while(bytes_left)
     {
-      *pixels = buf[i];
-
-      pixels++; 
-      byte_count++;
-
-      /* pixels in CAIRO_FORMAT_RGB24 are stored as 32bit integers where first byte is unused */
-      if (byte_count == 3)
+      /* GRAY */
+      if (params.format == SANE_FRAME_GRAY)
       {
-        *pixels = 0x00;
-        pixels++;
-        byte_count = 0;
+        /* 8bit Grayscale data */
+        if (params.depth == 8)
+        {
+          pixels_processed = _scanline_gray8(&params,
+                                             buf + (len - bytes_left),
+                                             bytes_left,
+                                             scanline + (scanline_fill * 4),
+                                             (params.pixels_per_line - scanline_fill));
+          bytes_left -= pixels_processed;
+        }
       }
-    } 
+      /* RGB */
+      else if (params.format == SANE_FRAME_RGB)
+      {
+        /* 8bit RGB data */
+        if (params.depth == 8)
+        {
+          pixels_processed = _scanline_rgb8(&params,
+                                            buf + (len - bytes_left),
+                                            bytes_left/3,                                            
+                                            scanline + (scanline_fill * 4),
+                                            (params.pixels_per_line - scanline_fill));
+          bytes_left -= (pixels_processed * 3);
+         }
+      }
 
-    /* signal ui to update pixbuf redraw */
-    cairo_surface_mark_dirty(self->preview);
-    _scanner_dispatch_scan_preview_update(self);
+      /* check if pixels where processed */
+      if (pixels_processed == 0)
+      {
+        uint8_t tmp[4];
+        memcpy(tmp, buf + (len - bytes_left), bytes_left);
+        memcpy(buf, tmp, bytes_left);
+        want_bytes =  params.bytes_per_line - bytes_left;
+
+        break;
+      }
+
+      /* if scanline is filled push it to backend */
+      scanline_fill += pixels_processed;
+      if (scanline_fill == params.pixels_per_line)
+      {
+        if (backend->scanline)
+          backend->scanline(backend, params, scanline);
+        scanline_fill = 0;
+      }
+    }
   }
-
+ 
 bail_out:
   g_free(buf);
-  /* reset scan preview options */
-  _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
-
-  _scanner_change_state(self, SCANNER_STATE_READY);
+  g_free(scanline);
+  return result;
 }
 
-void
+int
+dt_scanner_scan_preview(const struct dt_scanner_t *self)
+{
+  int result;
+  dt_scan_backend_t cairo;
+ 
+  _scanner_change_state(self, SCANNER_STATE_BUSY);
+
+  /* set options from configuration for specified scanner */
+  _scanner_set_options_from_config(self);
+
+  /* setup scan preview options */
+//  _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
+//  _scanner_option_set_int_value_by_name(self, "resolution", 200);
+
+  /* setup cairo backend */
+  memset(&cairo, 0, sizeof(cairo));
+  cairo.init = _backend_cairo_init;
+  cairo.scanline = _backend_cairo_scanline;
+
+  result = _scanner_scan_to_backend(self, &cairo, NULL);
+
+  /* reset scan preview options */
+//  _scanner_option_set_bool_value_by_name(self, "preview", TRUE);
+  _scanner_change_state(self, SCANNER_STATE_READY);
+  return result;
+}
+
+int
 dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job)
 {
   _scanner_change_state(self, SCANNER_STATE_BUSY);
@@ -709,4 +888,5 @@ dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job)
   /* TODO: perform scan, and use IR if enabled for dust removal */
 
   _scanner_change_state(self, SCANNER_STATE_READY);
+  return 0;
 }
