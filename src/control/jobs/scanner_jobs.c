@@ -17,6 +17,7 @@
 */
 
 #include "control/jobs/scanner_jobs.h"
+#include "control/jobs/image_jobs.h"
 
 int32_t
 dt_scanner_preview_job_run(dt_job_t *job)
@@ -56,6 +57,7 @@ dt_scanner_scan_job_init(dt_job_t *job, const struct dt_scanner_t *scanner,
 int32_t dt_scanner_scan_job_run(dt_job_t *job)
 {
   int res;
+  dt_job_t j;
   dt_scanner_scan_job_t *t;
   dt_scanner_job_t sj;
 
@@ -73,9 +75,11 @@ int32_t dt_scanner_scan_job_run(dt_job_t *job)
   res = dt_scanner_scan(t->scanner, &sj);
   if (res != 0)
     dt_control_log(_("Scan preview failed, see console for more information."));
-  g_free(sj.destination_filename);
 
-  /* TODO: lets import scanned image into darktable */
+  /* add import job of scanned image */
+  dt_image_import_job_init(&j, dt_import_session_film_id(t->session), sj.destination_filename);
+  dt_control_add_job(darktable.control, &j);
+  g_free(sj.destination_filename);
 
   /* cleanup */
   dt_import_session_destroy(t->session);
