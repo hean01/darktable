@@ -20,6 +20,9 @@
 #include <stdlib.h>
 #include <memory.h>
 #include <assert.h>
+#include <inttypes.h>
+
+#include <tiffio.h>
 
 #include <sane/sane.h>
 
@@ -53,13 +56,80 @@ typedef struct dt_scan_backend_t
   void *backend_data;
   int (*init)(struct dt_scan_backend_t *self, SANE_Parameters params, const char *filename);
   void (*cleanup)(struct dt_scan_backend_t *self, const char *filename);
-  void (*scanline)(struct dt_scan_backend_t *self, SANE_Parameters params, float *scanline);
+  void (*scanline)(struct dt_scan_backend_t *self, SANE_Parameters params, uint32_t line, float *scanline);
 } dt_scan_backend_t;
 
 
 static void _scanner_dispatch_scan_preview_update(const dt_scanner_t *self);
 
+/*
+ * tiff backend
+ */
+static int
+_backend_tiff_init(dt_scan_backend_t *self, SANE_Parameters params, const char *filename)
+{
+  TIFF *tiff;
 
+  /* open tiff file */
+  tiff = TIFFOpen(filename, "w");
+  if (tiff == NULL)
+    return 1;
+
+  /* setup headers */
+  TIFFSetField(tiff, TIFFTAG_IMAGEWIDTH, params.pixels_per_line);
+  TIFFSetField(tiff, TIFFTAG_IMAGELENGTH, params.lines);
+  TIFFSetField(tiff, TIFFTAG_BITSPERSAMPLE, 16);
+  TIFFSetField(tiff, TIFFTAG_COMPRESSION, COMPRESSION_DEFLATE);
+  TIFFSetField(tiff, TIFFTAG_FILLORDER, FILLORDER_MSB2LSB);
+  TIFFSetField(tiff, TIFFTAG_SAMPLESPERPIXEL, 3);
+  TIFFSetField(tiff, TIFFTAG_ROWSPERSTRIP, 1);
+  /* TODO: Maybe we should set scan resolution for convinience */
+#if 0
+  TIFFSetField(tiff, TIFFTAG_RESOLUTIONUNIT, RESUNIT_INCH);
+  TIFFSetField(tiff, TIFFTAG_XRESOLUTION, 300.0);
+  TIFFSetField(tiff, TIFFTAG_YRESOLUTION, 300.0);
+  TIFFSetField(tiff, TIFFTAG_ZIPQUALITY, 9);
+#endif
+  TIFFSetField(tiff, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
+  TIFFSetField(tiff, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
+  TIFFSetField(tiff, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
+
+  self->backend_data = tiff;
+  return 0;
+}
+
+static void
+_backend_tiff_scanline(dt_scan_backend_t *self, SANE_Parameters params, uint32_t line, float *scanline)
+{
+  int i;
+  uint16_t *pb, *buffer;
+
+  /* TODO: fix a tiff backend struct as backend_data and preallocate */
+  pb = buffer = g_malloc(2 * params.pixels_per_line * 3);
+
+  /* downscale into uint16_t buffer */
+  for (i = 0; i < params.pixels_per_line * 4; i += 4)
+  {
+    pb[0] = 0xffff * scanline[i + 0];
+    pb[1] = 0xffff * scanline[i + 1];
+    pb[2] = 0xffff * scanline[i + 2];
+    pb += 3;
+  }
+
+  /* write strip to tiff */
+  TIFFWriteScanline(self->backend_data, buffer, line, 0);
+  g_free(buffer);
+}
+
+static void
+_backend_tiff_cleanup(struct dt_scan_backend_t *self, const char *filename)
+{
+  TIFFClose(self->backend_data);
+}
+
+/*
+ * cairo surface backend
+ */
 static int
 _backend_cairo_init(dt_scan_backend_t *self, SANE_Parameters params, const char *filename)
 {
@@ -73,7 +143,7 @@ _backend_cairo_init(dt_scan_backend_t *self, SANE_Parameters params, const char 
 }
 
 static void
-_backend_cairo_scanline(dt_scan_backend_t *self, SANE_Parameters params, float *scanline)
+_backend_cairo_scanline(dt_scan_backend_t *self, SANE_Parameters params, uint32_t line, float *scanline)
 {
   int i;
   uint8_t *pixels;
@@ -715,7 +785,7 @@ _scanner_scan_to_backend(const struct dt_scanner_t *self,
   SANE_Parameters params;
   uint8_t *buf;
   int want_bytes;
-  int scanline_fill;
+  int scanline_fill, scanline_count;
   int pixels_processed, bytes_left;
   float *scanline;
 
@@ -772,6 +842,7 @@ _scanner_scan_to_backend(const struct dt_scanner_t *self,
   bytes_left = 0;
   pixels_processed = 0;
   want_bytes = params.bytes_per_line;
+  scanline_count = 0;
   while (res != SANE_STATUS_EOF)
   {
     /* read bytes into buffer from scanner */
@@ -835,13 +906,20 @@ _scanner_scan_to_backend(const struct dt_scanner_t *self,
       if (scanline_fill == params.pixels_per_line)
       {
         if (backend->scanline)
-          backend->scanline(backend, params, scanline);
+          backend->scanline(backend, params, scanline_count, scanline);
+
+        scanline_count++;
         scanline_fill = 0;
       }
     }
   }
- 
+
 bail_out:
+
+  /* cleanup backend */
+  if (backend->cleanup)
+    backend->cleanup(backend, filename);
+
   g_free(buf);
   g_free(scanline);
   return result;
@@ -878,6 +956,9 @@ dt_scanner_scan_preview(const struct dt_scanner_t *self)
 int
 dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job)
 {
+  int result;
+  dt_scan_backend_t tiff;
+
   _scanner_change_state(self, SCANNER_STATE_BUSY);
 
   /* set options from configuration for specified scanner */
@@ -885,8 +966,13 @@ dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job)
 
   /* TODO: detect if scanner supports IR channel */
 
-  /* TODO: perform scan, and use IR if enabled for dust removal */
+  /* setup tiff backend */
+  memset(&tiff, 0, sizeof(tiff));
+  tiff.init = _backend_tiff_init;
+  tiff.scanline = _backend_tiff_scanline;
+  tiff.cleanup = _backend_tiff_cleanup;
+  result = _scanner_scan_to_backend(self, &tiff, job->destination_filename);
 
   _scanner_change_state(self, SCANNER_STATE_READY);
-  return 0;
+  return result;
 }
