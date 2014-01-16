@@ -55,6 +55,7 @@ dt_scanner_scan_job_init(dt_job_t *job, const struct dt_scanner_t *scanner,
 
 int32_t dt_scanner_scan_job_run(dt_job_t *job)
 {
+  int res;
   dt_scanner_scan_job_t *t;
   dt_scanner_job_t sj;
 
@@ -67,9 +68,11 @@ int32_t dt_scanner_scan_job_run(dt_job_t *job)
   /* TODO: for each region execute a scan */
 
   /* setup scanner job and perform a scan */
-  dt_import_session_path(t->session, FALSE);
-  sj.destination_filename = g_strdup(dt_import_session_filename(t->session, FALSE));
-  dt_scanner_scan(t->scanner, &sj);
+  sj.destination_filename = g_build_filename(dt_import_session_path(t->session, FALSE),
+                                             dt_import_session_filename(t->session, FALSE), NULL);
+  res = dt_scanner_scan(t->scanner, &sj);
+  if (res != 0)
+    dt_control_log(_("Scan preview failed, see console for more information."));
   g_free(sj.destination_filename);
 
   /* TODO: lets import scanned image into darktable */
