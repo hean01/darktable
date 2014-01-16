@@ -117,7 +117,7 @@ gui_reset (dt_lib_module_t *self)
 int
 position ()
 {
-  return 999;
+  return 990;
 }
 
 void
