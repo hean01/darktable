@@ -62,7 +62,7 @@ _scanner_populate_scanner_list(dt_lib_module_t *self)
   /* remove all items in combobox
    * TODO: use gtk_combo_box_text_remove_all() but it's Gtk3 only
    */
-  if (gtk_tree_model_get_iter_first(gtk_combo_box_get_model(GTK_COMBO_BOX(lib->gui.scanners)), &iter))
+  while (gtk_tree_model_get_iter_first(gtk_combo_box_get_model(GTK_COMBO_BOX(lib->gui.scanners)), &iter))
     gtk_combo_box_text_remove(lib->gui.scanners, 0);
 
   /* add available scanners */
