@@ -192,6 +192,7 @@ _scanner_dtor(gpointer self)
 static void
 _scanner_control_remove_devices(dt_scanner_control_t *self)
 {
+  dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Removing all devices.\n");
   g_list_free_full(self->devices, _scanner_dtor);
   self->devices = NULL;
 }
@@ -485,6 +486,8 @@ dt_scanner_control_find_scanners(struct dt_scanner_control_t *self)
   const SANE_Device **device_list;
   dt_scanner_t *device;
 
+  dt_print(DT_DEBUG_SCANCTL, "[scanner_control] Find available scanners.\n");
+
   /* remove all known devices */
   _scanner_control_remove_devices(self);
 
@@ -525,7 +528,7 @@ int
 dt_scanner_open(dt_scanner_t *self)
 {
   SANE_Status res;
-
+  dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Opening device '%s'.\n", self->device->name);
   res = sane_open(self->device->name, &self->handle);
   if (res != SANE_STATUS_GOOD)
   {
@@ -540,12 +543,19 @@ dt_scanner_open(dt_scanner_t *self)
 void
 dt_scanner_close(dt_scanner_t *self)
 {
+  /* if not open do nothing */
+  if (self->handle == NULL)
+    return;
+
+  dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Closing device '%s'.\n", self->device->name);
+
   /* remove listeners */
   while (self->listeners)
     self->listeners = g_list_delete_link(self->listeners, self->listeners);
 
-  if (self->handle)
-    sane_close(self->handle);
+  /* if scanner is opened, close the handle */
+  sane_close(self->handle);
+  self->handle = NULL;
 }
 
 
