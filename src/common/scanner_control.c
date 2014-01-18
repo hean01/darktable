@@ -40,6 +40,7 @@ typedef struct dt_scanner_t
 {
   guint hash;
   uint32_t ref_cnt;
+  uint32_t open_ref_cnt;
   dt_scanner_state_t state;
   const SANE_Device *device;
   SANE_Handle handle;
@@ -612,6 +613,9 @@ dt_scanner_open(const dt_scanner_t *self)
             self->device->name, sane_strstatus(res));
     return 1;
   }
+
+  /* increase open reference count */
+  ((dt_scanner_t *)self)->open_ref_cnt++;
   return 0;
 }
 
@@ -621,6 +625,10 @@ dt_scanner_close(const dt_scanner_t *self)
 {
   /* if not open do nothing */
   if (self->handle == NULL)
+    return;
+
+  /* check open reference count */
+  if (--((dt_scanner_t*)self)->open_ref_cnt > 0)
     return;
 
   dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Closing device '%s'.\n", self->device->name);

@@ -24,10 +24,15 @@ dt_scanner_preview_job_run(dt_job_t *job)
 {
   int res;
   dt_scanner_preview_job_t *t=(dt_scanner_preview_job_t*)job->param;
+
+  /* do a preview scan */
   res = dt_scanner_scan_preview(t->scanner);
-  dt_scanner_unref(t->scanner);
   if (res != 0)
     dt_control_log(_("Scan preview failed, see console for more information."));
+
+  /* close and unref the scanner */
+  dt_scanner_close(t->scanner);
+  dt_scanner_unref(t->scanner);
   return 0;
 }
 
@@ -37,6 +42,8 @@ dt_scanner_preview_job_init(dt_job_t *job, const struct dt_scanner_t *scanner)
   dt_control_job_init(job, "scan preview");
   job->execute = &dt_scanner_preview_job_run;
   dt_scanner_preview_job_t *t = (dt_scanner_preview_job_t *)job->param;
+
+  dt_scanner_open(scanner);
 
   /* add reference to scanner */
   dt_scanner_ref(scanner);
@@ -52,6 +59,8 @@ dt_scanner_scan_job_init(dt_job_t *job, const struct dt_scanner_t *scanner,
   dt_control_job_init(job, "scan");
   job->execute = &dt_scanner_scan_job_run;
   t = (dt_scanner_scan_job_t *)job->param;
+
+  dt_scanner_open(scanner);
 
   /* add reference to scanner */
   dt_scanner_ref(scanner);
@@ -90,6 +99,7 @@ int32_t dt_scanner_scan_job_run(dt_job_t *job)
   g_free(sj.destination_filename);
 
   /* cleanup */
+  dt_scanner_close(t->scanner);
   dt_scanner_unref(t->scanner);
   dt_import_session_destroy(t->session);
   return 0;
