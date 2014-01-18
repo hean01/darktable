@@ -23,6 +23,7 @@
 #include "libs/lib.h"
 #include "control/conf.h"
 #include "control/control.h"
+#include "common/film.h"
 #include "common/darktable.h"
 #include "common/import_session.h"
 #include "common/scanner_control.h"
@@ -92,6 +93,8 @@ _scan_view_set_job_code(const dt_view_t *self, const char *name)
   view = (dt_scan_view_t *)self->data;
   dt_conf_set_string("scan/jobcode", name);
   dt_import_session_set_name(view->session, name);
+  dt_film_open(dt_import_session_film_id(view->session));
+  dt_control_log(_("new session initiated '%s'"), name);
 }
 
 static void
@@ -120,6 +123,9 @@ init(dt_view_t *self)
 
   self->data = malloc(sizeof(dt_scan_view_t));
   memset(self->data, 0, sizeof(dt_scan_view_t));
+
+  /* prefetch next few from first selected image on. */
+  dt_view_filmstrip_prefetch();
 
   view = (dt_scan_view_t *)self->data;
 

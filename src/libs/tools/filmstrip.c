@@ -137,7 +137,7 @@ const char* name()
 
 uint32_t views()
 {
-  return DT_VIEW_DARKROOM | DT_VIEW_TETHERING | DT_VIEW_MAP;
+  return DT_VIEW_DARKROOM | DT_VIEW_TETHERING | DT_VIEW_MAP | DT_VIEW_SCAN;
 }
 
 uint32_t container()
