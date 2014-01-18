@@ -250,7 +250,7 @@ typedef struct dt_view_manager_t
     struct
     {
       struct dt_view_t *view;
-      void (*set_scanner)(const dt_view_t *view, struct dt_scanner_t *scanner);
+      void (*set_scanner)(const dt_view_t *view, const struct dt_scanner_t *scanner);
       const struct dt_scanner_t * (*get_scanner)(const dt_view_t *view);
       const char *(*get_job_code)(const dt_view_t *view);
       void (*set_job_code)(const dt_view_t *view, const char *name);
@@ -361,7 +361,7 @@ void dt_view_map_set_map_source(const dt_view_manager_t *vm, OsmGpsMapSource_t m
  * Scan View Proxy
  */
 #ifdef HAVE_SANE
-void dt_view_scan_set_scanner(const dt_view_manager_t *vm, struct dt_scanner_t *scanner);
+void dt_view_scan_set_scanner(const dt_view_manager_t *vm, const struct dt_scanner_t *scanner);
 const struct dt_scanner_t *dt_view_scan_get_scanner(const dt_view_manager_t *vm);
 /** set the current jobcode for scan session */
 void dt_view_scan_set_job_code(const dt_view_manager_t *vm, const char *name);

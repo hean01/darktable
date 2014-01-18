@@ -92,6 +92,7 @@ _scanner_populate_scanner_list(dt_lib_module_t *self)
     if (active_scanner && strcmp(dt_scanner_name(scanner), active_scanner) == 0)
       active_idx = idx;
 
+    dt_scanner_unref(scanner);
     scanners = g_list_next(scanners);
     idx++;
   }
@@ -185,6 +186,7 @@ static void
 _scanner_scan_preview_click(GtkWidget *w, gpointer opaque)
 {
   dt_job_t job;
+  /* add scan job to queue */
   dt_scanner_preview_job_init(&job, dt_view_scan_get_scanner(darktable.view_manager));
   dt_control_add_job(darktable.control, &job);
 }
@@ -193,9 +195,8 @@ static void
 _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
 {
   gint idx;
-  GList *scanners;
   dt_lib_scanner_t *lib;
-  struct dt_scanner_t *scanner;
+  const struct dt_scanner_t *scanner;
 
   lib = ((dt_lib_module_t *)opaque)->data;
 
@@ -207,15 +208,12 @@ _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
   fprintf(stderr, "Combo changed to idx %d\n", idx);
 
   /* reset and fetch new list of scanners */
-  scanners = (GList *)dt_scanner_control_get_scanners(darktable.scanctl);
-  scanner = g_list_nth_data(scanners, idx);
-
+  scanner = dt_scanner_control_get_scanner(darktable.scanctl, idx);
   if (scanner == NULL)
     abort();
 
   /* assign scanner to view */
   dt_view_scan_set_scanner(darktable.view_manager, scanner);
-
 }
 
 static void

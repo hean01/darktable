@@ -31,21 +31,24 @@ DT_MODULE(1)
 
 typedef struct dt_scan_view_t
 {
-  struct dt_scanner_t *scanner;
+  const struct dt_scanner_t *scanner;
   struct dt_import_session_t *session;
   dt_scanner_listener_t *scanner_listener;
 }
 dt_scan_view_t;
 
 static void
-_scan_view_set_scanner(const dt_view_t *self, struct dt_scanner_t *scanner)
+_scan_view_set_scanner(const dt_view_t *self, const struct dt_scanner_t *scanner)
 {
   dt_scan_view_t *view;
   view = (dt_scan_view_t *)self->data;
 
-  /* close previously active scanner */
+  /* close and unref previously active scanner */
   if (view->scanner)
+  {
     dt_scanner_close(view->scanner);
+    dt_scanner_unref(view->scanner);
+  }
 
   /* try open the new one */
   if (dt_scanner_open(scanner) != 0)

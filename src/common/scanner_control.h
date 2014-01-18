@@ -54,13 +54,14 @@ void dt_scanner_control_destroy(struct dt_scanner_control_t *self);
 void dt_scanner_control_find_scanners(struct dt_scanner_control_t *self);
 
 const GList *dt_scanner_control_get_scanners(struct dt_scanner_control_t *self);
+const struct dt_scanner_t *dt_scanner_control_get_scanner(struct dt_scanner_control_t *self, uint32_t index);
 
 /** \brief open a scanner for use. */
-int dt_scanner_open(struct dt_scanner_t *self);
+int dt_scanner_open(const struct dt_scanner_t *self);
 /** \brief close the previous opend scanner.
     \note This will remove all registered listeners from the scanner.
 */
-void dt_scanner_close(struct dt_scanner_t *self);
+void dt_scanner_close(const struct dt_scanner_t *self);
 /** \brief get scanner model. */
 const char *dt_scanner_model(const struct dt_scanner_t *self);
 /** \brief get scanner name.
@@ -82,5 +83,10 @@ const cairo_surface_t *dt_scanner_preview(const struct dt_scanner_t *self);
 int dt_scanner_scan_preview(const struct dt_scanner_t *self);
 /** \brief Starts a scan job for scanner. */
 int dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job);
+
+/** \brief Adds a reference to the scanner. */
+void dt_scanner_ref(const struct dt_scanner_t *self);
+/** \brief Remove reference to scanner. */
+void dt_scanner_unref(const struct dt_scanner_t *self);
 
 #endif

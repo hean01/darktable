@@ -32,9 +32,14 @@
 
 #define CONFIG_KEY "scan"
 
+/** \brief A scanner description.
+    \remark A dt_scanner_t  should be referenced when stored somewhere else
+            such in the scan view and by scan jobs when initialized.
+ */
 typedef struct dt_scanner_t
 {
   guint hash;
+  uint32_t ref_cnt;
   dt_scanner_state_t state;
   const SANE_Device *device;
   SANE_Handle handle;
@@ -50,6 +55,7 @@ typedef struct dt_scanner_control_t
   GList *devices;
 } dt_scanner_control_t;
 
+
 typedef struct dt_scan_backend_t
 {
   const dt_scanner_t *scanner;
@@ -60,7 +66,13 @@ typedef struct dt_scan_backend_t
 } dt_scan_backend_t;
 
 
+/* increments reference to a scanner instance */
+static void _scanner_ref(gpointer self);
+/* decrements reference to a scanner instance, if last _scanner_dtor will be called */
+static void _scanner_unref(gpointer self);
+/* disptach scan preview update callback */
 static void _scanner_dispatch_scan_preview_update(const dt_scanner_t *self);
+
 
 /*
  * tiff backend
@@ -177,6 +189,9 @@ _scanner_ctor(const SANE_Device *device)
   memset(scanner, 0, sizeof(dt_scanner_t));
   scanner->device = device;
   scanner->hash = g_str_hash(dt_scanner_name(scanner));
+
+  _scanner_ref(scanner);
+
   return scanner;
 }
 
@@ -188,12 +203,33 @@ _scanner_dtor(gpointer self)
   free(self);
 }
 
+static void
+_scanner_ref(gpointer self)
+{
+  ((dt_scanner_t *)self)->ref_cnt++;
+}
+
+static void
+_glist_scanner_ref(gpointer data, gpointer user_data)
+{
+  _scanner_ref(data);
+}
+
+static void
+_scanner_unref(gpointer self)
+{
+  dt_scanner_t * scanner;
+  scanner = self;
+  if (--scanner->ref_cnt == 0)
+    _scanner_dtor(scanner);
+}
+
 
 static void
 _scanner_control_remove_devices(dt_scanner_control_t *self)
 {
   dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Removing all devices.\n");
-  g_list_free_full(self->devices, _scanner_dtor);
+  g_list_free_full(self->devices, _scanner_unref);
   self->devices = NULL;
 }
 
@@ -520,16 +556,31 @@ dt_scanner_control_find_scanners(struct dt_scanner_control_t *self)
 const GList *
 dt_scanner_control_get_scanners(struct dt_scanner_control_t *self)
 {
+  /* lets increment reference to all scanners before returning list of devices
+     it's the callers responsibility to unref the scanners when used. */
+  g_list_foreach(self->devices, (GFunc)_glist_scanner_ref, NULL);
   return self->devices;
+}
+
+const struct dt_scanner_t *
+dt_scanner_control_get_scanner(struct dt_scanner_control_t *self, uint32_t index)
+{
+  dt_scanner_t *scanner;
+
+  scanner = g_list_nth_data(self->devices, index);
+  if (scanner != NULL)
+    _scanner_ref(scanner);
+
+  return scanner;
 }
 
 
 int
-dt_scanner_open(dt_scanner_t *self)
+dt_scanner_open(const dt_scanner_t *self)
 {
   SANE_Status res;
   dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Opening device '%s'.\n", self->device->name);
-  res = sane_open(self->device->name, &self->handle);
+  res = sane_open(self->device->name, &((dt_scanner_t *)self)->handle);
   if (res != SANE_STATUS_GOOD)
   {
     fprintf(stderr, "[scanner_control] Failed to open device '%s' with reason: %s\n",
@@ -541,7 +592,7 @@ dt_scanner_open(dt_scanner_t *self)
 
 
 void
-dt_scanner_close(dt_scanner_t *self)
+dt_scanner_close(const dt_scanner_t *self)
 {
   /* if not open do nothing */
   if (self->handle == NULL)
@@ -551,11 +602,11 @@ dt_scanner_close(dt_scanner_t *self)
 
   /* remove listeners */
   while (self->listeners)
-    self->listeners = g_list_delete_link(self->listeners, self->listeners);
+    ((dt_scanner_t *)self)->listeners = g_list_delete_link(self->listeners, self->listeners);
 
   /* if scanner is opened, close the handle */
   sane_close(self->handle);
-  self->handle = NULL;
+  ((dt_scanner_t *)self)->handle = NULL;
 }
 
 
@@ -985,4 +1036,16 @@ dt_scanner_scan(const struct dt_scanner_t *self, dt_scanner_job_t *job)
 
   _scanner_change_state(self, SCANNER_STATE_READY);
   return result;
+}
+
+void
+dt_scanner_ref(const struct dt_scanner_t *self)
+{
+  _scanner_ref((dt_scanner_t *)self);
+}
+
+void
+dt_scanner_unref(const struct dt_scanner_t *self)
+{
+  _scanner_unref((dt_scanner_t *)self);
 }

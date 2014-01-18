@@ -1428,7 +1428,7 @@ void dt_view_map_set_map_source(const dt_view_manager_t *vm, OsmGpsMapSource_t m
 #endif
 
 #ifdef HAVE_SANE
-void dt_view_scan_set_scanner(const dt_view_manager_t *vm, struct dt_scanner_t *scanner)
+void dt_view_scan_set_scanner(const dt_view_manager_t *vm, const struct dt_scanner_t *scanner)
 {
   if (vm->proxy.scan.view)
     vm->proxy.scan.set_scanner(vm->proxy.scan.view, scanner);
