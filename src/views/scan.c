@@ -55,6 +55,7 @@ _scan_view_set_scanner(const dt_view_t *self, struct dt_scanner_t *scanner)
   }
 
   view->scanner = scanner;
+  dt_conf_set_string("scan/active_scanner", dt_scanner_name(scanner));
   dt_control_log("Using scanner %s", dt_scanner_model(scanner));
 
   /* add view as listener to scanner */
