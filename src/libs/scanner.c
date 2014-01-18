@@ -18,6 +18,7 @@
 
 #include <assert.h>
 
+#include "control/conf.h"
 #include "control/control.h"
 #include "control/jobs/scanner_jobs.h"
 #include "common/darktable.h"
@@ -55,7 +56,7 @@ _scanner_populate_scanner_list(dt_lib_module_t *self)
   GList *scanners;
   dt_lib_scanner_t *lib;
   struct dt_scanner_t *scanner;
-  const struct dt_scanner_t *active_scanner;
+  char *active_scanner;
 
   lib = self->data;
 
@@ -74,23 +75,33 @@ _scanner_populate_scanner_list(dt_lib_module_t *self)
     return;
   }
 
-  /* we have scanners lets populate the list */
-  active_idx = idx = 0;
-  active_scanner = dt_view_scan_get_scanner(darktable.view_manager);
+  /* get last active scanner for selection */
+  active_idx = -1;
+  active_scanner = dt_conf_get_string("scan/active_scanner");
+  if (active_scanner)
+    fprintf(stderr, "Active scanner: %s\n", active_scanner);
+
+  /* populate the list of scanners */
+  idx = 0;
   while(scanners)
   {
     scanner = scanners->data;
     gtk_combo_box_text_append_text(lib->gui.scanners,
                                    dt_scanner_model(scanner));
 
-    if (strcmp(dt_scanner_name(scanner), dt_scanner_name(active_scanner)) == 0)
+    if (active_scanner && strcmp(dt_scanner_name(scanner), active_scanner) == 0)
       active_idx = idx;
 
     scanners = g_list_next(scanners);
     idx++;
   }
 
-  gtk_combo_box_set_active(GTK_COMBO_BOX(lib->gui.scanners), active_idx);
+  /* activate last scanner used if available, otherwise use first in list */
+  fprintf(stderr, "Active scanner idx %d\n", active_idx);
+  if (active_idx != -1)
+    gtk_combo_box_set_active(GTK_COMBO_BOX(lib->gui.scanners), active_idx);
+  else
+    gtk_combo_box_set_active(GTK_COMBO_BOX(lib->gui.scanners), 0);
 }
 
 static char * _scanner_options[] = {
@@ -190,6 +201,10 @@ _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
 
   /* get selected index, if not selected use 0 */
   idx = gtk_combo_box_get_active(GTK_COMBO_BOX(lib->gui.scanners));
+  if (idx == -1)
+    return;
+
+  fprintf(stderr, "Combo changed to idx %d\n", idx);
 
   /* reset and fetch new list of scanners */
   scanners = (GList *)dt_scanner_control_get_scanners(darktable.scanctl);
