@@ -108,6 +108,7 @@ _scanner_populate_scanner_list(dt_lib_module_t *self)
 static char * _scanner_options[] = {
   "source",
   "mode",
+  "speed",
   "depth",
   "x-resolution",
   "y-resolution",
@@ -117,9 +118,8 @@ static char * _scanner_options[] = {
 static void
 _scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_t *scanner)
 {
-  int rows;
   char **sopt;
-  GtkWidget *label, *widget;
+  GtkWidget *widget;
   dt_lib_scanner_t *lib;
   lib = (dt_lib_scanner_t *)self->data;
 
@@ -128,9 +128,7 @@ _scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_
     gtk_widget_destroy(lib->gui.options);
 
   /* create table of options */
-  rows = 0;
-  lib->gui.options = gtk_table_new(0, 2, FALSE);
-  gtk_table_set_row_spacings(GTK_TABLE(lib->gui.options), 5);
+  lib->gui.options = gtk_vbox_new(FALSE, 0);
 
   /* get active scanner from view */
   scanner = dt_view_scan_get_scanner(darktable.view_manager);
@@ -142,30 +140,26 @@ _scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_
   while (*sopt)
   {
     /* try create option from hardcoded list */
-    if (dt_scanner_create_option_widget(scanner, *sopt, &label, &widget) == FALSE)
+    widget = NULL;
+    if (dt_scanner_create_option_widget(scanner, *sopt, &widget) == FALSE)
     {
       /* if no axis independent resolution option is available, lets
          try generic resoltion option instead */
       if (strcmp(*sopt, "x-resolution") == 0)
       {
         /* use option "resolution" instead and skip next "y-resolution" in list */
-        dt_scanner_create_option_widget(scanner, "resolution", &label, &widget);
+        dt_scanner_create_option_widget(scanner, "resolution", &widget);
         sopt++;
       }
     }
 
-    if (label && widget)
-    {
-      gtk_table_resize(GTK_TABLE(lib->gui.options), 1, 2);
-      gtk_table_attach(GTK_TABLE(lib->gui.options), label, 0, 1, rows, rows + 1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-      gtk_table_attach(GTK_TABLE(lib->gui.options), widget, 1, 2, rows, rows + 1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
-      rows++;
-    }
+    if (widget)
+      gtk_box_pack_start(GTK_BOX(lib->gui.options), widget, TRUE, TRUE, 0);
 
     sopt++;
   }
 
-  gtk_box_pack_start(GTK_BOX(self->widget), lib->gui.options, FALSE, FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(self->widget), lib->gui.options, TRUE, FALSE, 5);
   gtk_box_reorder_child(GTK_BOX(self->widget), lib->gui.options, 1);
 
   gtk_widget_show_all(lib->gui.options);

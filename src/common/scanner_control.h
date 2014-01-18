@@ -72,8 +72,7 @@ const char *dt_scanner_model(const struct dt_scanner_t *self);
 */
 const char *dt_scanner_name(const struct dt_scanner_t *self);
 /** \brief helper function to create a option widget. */
-gboolean dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name,
-                                         GtkWidget **label, GtkWidget **control);
+gboolean dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name, GtkWidget **control);
 /** \brief Add a listener to scanner. */
 void dt_scanner_add_listener(const struct dt_scanner_t *self, dt_scanner_listener_t *listener);
 /** \brief Remove a listener from scanner. */

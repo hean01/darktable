@@ -26,6 +26,7 @@
 
 #include <sane/sane.h>
 
+#include "bauhaus/bauhaus.h"
 #include "control/conf.h"
 #include "common/darktable.h"
 #include "common/scanner_control.h"
@@ -401,14 +402,19 @@ _scanner_dispatch_scan_preview_update(const dt_scanner_t *self)
 static void
 _scanner_control_on_option_changed(GtkWidget *w, gpointer opaque)
 {
+  int idx;
+  const GList *values;
   char *name, *value;
   char key[512];
   struct dt_scanner_t *scanner;
 
   scanner = (dt_scanner_t *)opaque;
-
   name = g_object_get_data(G_OBJECT(w), "option-name");
-  value = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w));
+
+  /* get current selected value */
+  values = dt_bauhaus_combobox_get_labels(w);
+  idx = dt_bauhaus_combobox_get(w);
+  value = g_list_nth_data((GList *)values, idx);
 
   g_snprintf(key, 512, "%s/devices/%x/%s",CONFIG_KEY, scanner->hash, name);
 
@@ -658,8 +664,7 @@ dt_scanner_name(const dt_scanner_t *self)
 
 
 gboolean
-dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name,
-                                GtkWidget **label, GtkWidget **control)
+dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *name, GtkWidget **control)
 {
   int i, cnt, known_scanner;
   char key[512], device_config_key[128];
@@ -690,19 +695,13 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     return FALSE;
   }
 
-  /* label */
-  *label = gtk_label_new(option->title);
-  gtk_misc_set_alignment(GTK_MISC(*label), 0.0, 0.5);
-
-  /* create options combobox */
-  *control = gtk_combo_box_text_new();
-  if (option->desc)
-    g_object_set(G_OBJECT(*control), "tooltip-text", option->desc, (char *)NULL);
-
-  if (option->type == SANE_TYPE_STRING)
+  /* create options control */
+  if (option->type == SANE_TYPE_STRING && option->constraint_type == SANE_CONSTRAINT_STRING_LIST)
   {
     /* handle list of strings */
     cnt = 0;
+    *control = dt_bauhaus_combobox_new(NULL);
+    dt_bauhaus_widget_set_label(*control, NULL, option->title);
 
     /* lookup if we have a stored value for this scanner option otherwise
        get the value from scanner to be selected */
@@ -715,7 +714,7 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     else
     {
       /* get actual value from scanner and store it to config */
-      current_sval = _scanner_option_get_string_value_by_name (self, name);
+      current_sval = _scanner_option_get_string_value_by_name(self, name);
       dt_conf_set_string(key, current_sval);
     }
 
@@ -723,15 +722,19 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     while (*sval)
     {
       /* add new option to combo */
-      gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(*control), *sval);
+      dt_bauhaus_combobox_add(*control, *sval);
 
       /* if this option is current value, select it */
       if (current_sval && strcmp(*sval, current_sval) == 0)
-        gtk_combo_box_set_active(GTK_COMBO_BOX(*control), cnt);
+        dt_bauhaus_combobox_set(*control, cnt);
 
       cnt++;
       sval++;
     }
+
+    /* setup signal for control */
+    g_signal_connect(G_OBJECT(*control), "value-changed",
+                     G_CALLBACK(_scanner_control_on_option_changed), (gpointer)self);
 
     /* cleanup */
     g_free(current_sval);
@@ -739,6 +742,8 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
   else if (option->type == SANE_TYPE_INT && option->constraint_type == SANE_CONSTRAINT_WORD_LIST)
   {
     /* handle list of integers */
+    *control = dt_bauhaus_combobox_new(NULL);
+    dt_bauhaus_widget_set_label(*control, NULL, option->title);
 
     /* lookup if we have a stored value for this scanner option otherwise
        get the value from scanner to be selected */
@@ -751,7 +756,7 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     else
     {
       /* get actual value from scanner and store it to config */
-      current_ival = _scanner_option_get_int_value_by_name (self, name);
+      current_ival = _scanner_option_get_int_value_by_name(self, name);
       g_snprintf(buf, 128, "%d", current_ival);
       dt_conf_set_string(key, buf);
     }
@@ -762,10 +767,13 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     {
       ival++;
       g_snprintf(buf, 128, "%d", *ival);
-      gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(*control), buf);
+      dt_bauhaus_combobox_add(*control, buf);
       if (*ival == current_ival)
-        gtk_combo_box_set_active(GTK_COMBO_BOX(*control), i);
+        dt_bauhaus_combobox_set(*control, i);
     }
+
+    g_signal_connect(G_OBJECT(*control), "value-changed",
+                     G_CALLBACK(_scanner_control_on_option_changed), (gpointer)self);
   }
   else
   {
@@ -773,17 +781,16 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
             option->type, name);
 
     /* destroy and cleanup */
-    gtk_widget_destroy(*label);
-    gtk_widget_destroy(*control);
-    *label = *control = NULL;
+    *control = NULL;
 
     return FALSE;
   }
 
-  /* connect control option signal handler */
+  /* set tooltip of control */
+  if (option->desc)
+    g_object_set(G_OBJECT(*control), "tooltip-text", option->desc, (char *)NULL);
+
   g_object_set_data(G_OBJECT(*control), "option-name", (gpointer)name);
-  g_signal_connect(G_OBJECT(*control), "changed",
-                   G_CALLBACK(_scanner_control_on_option_changed), (gpointer)self);
 
   return TRUE;
 }
