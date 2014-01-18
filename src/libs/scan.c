@@ -143,7 +143,7 @@ gui_init (dt_lib_module_t *self)
   vbox1 = self->widget = gtk_vbox_new(FALSE, 5);
 
   /* Add scan button */
-  lib->gui.scan = w = gtk_button_new_with_label(_("Scan batch"));
+  lib->gui.scan = w = gtk_button_new_with_label(_("scan batch"));
   gtk_box_pack_start(GTK_BOX(vbox1), w, TRUE, TRUE, 0);
   g_signal_connect(G_OBJECT(w), "clicked",
                    G_CALLBACK(_scan_on_scan_clicked), self);

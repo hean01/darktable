@@ -332,7 +332,7 @@ gui_init (dt_lib_module_t *self)
   gtk_box_pack_start(GTK_BOX(vbox1), GTK_WIDGET(hbox1), TRUE, TRUE, 0);
 
   /* Add scan preview button */
-  lib->gui.preview = w = gtk_button_new_with_label(_("Scan preview"));
+  lib->gui.preview = w = gtk_button_new_with_label(_("scan preview"));
   gtk_box_pack_start(GTK_BOX(vbox1), w, TRUE, TRUE, 0);
   g_signal_connect(G_OBJECT(w), "clicked",
                    G_CALLBACK(_scanner_scan_preview_click), self);
