@@ -318,6 +318,28 @@ _scanner_option_get_int_value_by_name(const dt_scanner_t *self, const char *name
   return ival;
 }
 
+static SANE_Fixed
+_scanner_option_get_fixed_value_by_name(const dt_scanner_t *self, const char *name)
+{
+  int idx;
+  SANE_Fixed fval;
+  SANE_Status res;
+
+  idx = _scanner_option_index_by_name(self, name);
+  if (idx == -1)
+    return -1;
+
+  res = sane_control_option(self->handle, idx, SANE_ACTION_GET_VALUE, &fval, NULL);
+  if (res != SANE_STATUS_GOOD)
+  {
+    fprintf(stderr, "[scanner_control] Failed to get option '%s' value with reason: %s\n",
+            name, sane_strstatus(res));
+    return -1;
+  }
+
+  return fval;
+}
+
 #if 0
 static int
 _scanner_option_set_bool_value_by_name(const dt_scanner_t *self, const char *name, gboolean bval)
@@ -400,7 +422,7 @@ _scanner_dispatch_scan_preview_update(const dt_scanner_t *self)
 }
 
 static void
-_scanner_control_on_option_changed(GtkWidget *w, gpointer opaque)
+_scanner_control_on_option_combo_changed(GtkWidget *w, gpointer opaque)
 {
   int idx;
   const GList *values;
@@ -416,9 +438,24 @@ _scanner_control_on_option_changed(GtkWidget *w, gpointer opaque)
   idx = dt_bauhaus_combobox_get(w);
   value = g_list_nth_data((GList *)values, idx);
 
-  g_snprintf(key, 512, "%s/devices/%x/%s",CONFIG_KEY, scanner->hash, name);
+  g_snprintf(key, 512, "%s/devices/%x/%s", CONFIG_KEY, scanner->hash, name);
 
   dt_conf_set_string(key, value);
+}
+
+static void
+_scanner_control_on_option_slider_changed(GtkWidget *w, gpointer opaque)
+{
+  char *name;
+  double value;
+  char key[512];
+  struct dt_scanner_t *scanner;
+
+  scanner = (dt_scanner_t *)opaque;
+  name = g_object_get_data(G_OBJECT(w), "option-name");
+  value = dt_bauhaus_slider_get(w);
+  g_snprintf(key, 512, "%s/devices/%x/%s", CONFIG_KEY, scanner->hash, name);
+  dt_conf_set_float(key, value);
 }
 
 static void
@@ -428,6 +465,7 @@ _scanner_option_set_value(const dt_scanner_t *self,
   int idx;
   SANE_Status res;
   SANE_Int ival;
+  SANE_Fixed fval;
   const SANE_Option_Descriptor *desc;
 
   /* get index of option name */
@@ -446,8 +484,12 @@ _scanner_option_set_value(const dt_scanner_t *self,
     ival = atoi(value);
     res = sane_control_option(self->handle, idx, SANE_ACTION_SET_VALUE, &ival, NULL);
     break;
+  case SANE_TYPE_FIXED:
+    fval = SANE_FIX(strtod(value, NULL));
+    res = sane_control_option(self->handle, idx, SANE_ACTION_SET_VALUE, &fval, NULL);
+    break;
   default:
-    fprintf(stderr, "[scanner_control] Unsupported value type %d", desc->type);
+    fprintf(stderr, "[scanner_control] Unsupported value type %d\n", desc->type);
     return;
   }
 
@@ -673,6 +715,7 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
   const SANE_String_Const *sval;
   SANE_Int current_ival;
   char *current_sval;
+  SANE_Fixed current_fval;
   const SANE_Option_Descriptor *option;
 
   /* do we have stored config values for this scanner */
@@ -734,7 +777,7 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
 
     /* setup signal for control */
     g_signal_connect(G_OBJECT(*control), "value-changed",
-                     G_CALLBACK(_scanner_control_on_option_changed), (gpointer)self);
+                     G_CALLBACK(_scanner_control_on_option_combo_changed), (gpointer)self);
 
     /* cleanup */
     g_free(current_sval);
@@ -773,7 +816,37 @@ dt_scanner_create_option_widget(const struct dt_scanner_t *self, const char *nam
     }
 
     g_signal_connect(G_OBJECT(*control), "value-changed",
-                     G_CALLBACK(_scanner_control_on_option_changed), (gpointer)self);
+                     G_CALLBACK(_scanner_control_on_option_combo_changed), (gpointer)self);
+  }
+  else if (option->type == SANE_TYPE_FIXED && option->constraint_type == SANE_CONSTRAINT_RANGE)
+  {
+    /* handle fixed range */
+
+    /* lookup if we have a stored value for this scanner option otherwise
+       get the value from scanner to be selected */
+    g_snprintf(key, 512, "%s/%s", device_config_key, name);
+    if (dt_conf_key_exists(key))
+    {
+      /* get stored config value for this option */
+      current_fval = SANE_FIX(strtod(dt_conf_get_string(key), NULL));
+    }
+    else
+    {
+      /* get actual value from scanner and store it to config */
+      current_fval = _scanner_option_get_fixed_value_by_name(self, name);
+      g_snprintf(buf, 128, "%f", SANE_UNFIX(current_fval));
+      dt_conf_set_string(key, buf);
+    }
+
+    *control = dt_bauhaus_slider_new_with_range(NULL,
+                                                SANE_UNFIX(option->constraint.range->min),
+                                                SANE_UNFIX(option->constraint.range->max),
+                                                SANE_UNFIX(option->constraint.range->quant),
+                                                SANE_UNFIX(current_fval), 3);
+    dt_bauhaus_widget_set_label(*control, NULL, option->title);
+
+    g_signal_connect (G_OBJECT (*control), "value-changed",
+                      G_CALLBACK(_scanner_control_on_option_slider_changed), (gpointer)self);
   }
   else
   {
