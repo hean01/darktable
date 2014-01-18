@@ -208,7 +208,7 @@ _scanner_scanners_combobox_changed(GtkWidget *w, gpointer opaque)
   fprintf(stderr, "Combo changed to idx %d\n", idx);
 
   /* reset and fetch new list of scanners */
-  scanner = dt_scanner_control_get_scanner(darktable.scanctl, idx);
+  scanner = dt_scanner_control_get_scanner_by_index(darktable.scanctl, idx);
   if (scanner == NULL)
     abort();
 

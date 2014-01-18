@@ -209,7 +209,8 @@ int
 try_enter(dt_view_t *self)
 {
   dt_scan_view_t *view;
-  const GList *scanners;
+  const char *active_scanner;
+  const struct dt_scanner_t *scanner;
 
   view = (dt_scan_view_t *)self->data;
 
@@ -220,19 +221,23 @@ try_enter(dt_view_t *self)
   /* No active scanner assume first time enter for this instance
      and find new scanners and activate the first in list.
   */
-  scanners = NULL;
   dt_scanner_control_find_scanners(darktable.scanctl);
-  scanners = dt_scanner_control_get_scanners(darktable.scanctl);
-  if (scanners == NULL)
+
+  /* get last used scanner */
+  active_scanner = dt_conf_get_string("scan/active_scanner");
+  if (active_scanner)
+    scanner = dt_scanner_control_get_scanner_by_name(darktable.scanctl, active_scanner);
+  /* else use the first in list */
+  else
+    scanner = dt_scanner_control_get_scanner_by_index(darktable.scanctl, 0);
+
+  if (scanner == NULL)
   {
     dt_control_log(_("no scanners available for use..."));
     return 1;
   }
 
-  /* Set first scanner in list as active one for the view.
-     TODO: set from stored last_ui configuration
-  */
-  _scan_view_set_scanner(self, scanners->data);
+  _scan_view_set_scanner(self, scanner);
 
   return 0;
 }

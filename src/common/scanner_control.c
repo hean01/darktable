@@ -563,11 +563,36 @@ dt_scanner_control_get_scanners(struct dt_scanner_control_t *self)
 }
 
 const struct dt_scanner_t *
-dt_scanner_control_get_scanner(struct dt_scanner_control_t *self, uint32_t index)
+dt_scanner_control_get_scanner_by_index(struct dt_scanner_control_t *self, uint32_t index)
 {
   dt_scanner_t *scanner;
 
   scanner = g_list_nth_data(self->devices, index);
+  if (scanner != NULL)
+    _scanner_ref(scanner);
+
+  return scanner;
+}
+
+const struct dt_scanner_t *
+dt_scanner_control_get_scanner_by_name(struct dt_scanner_control_t *self, const char *name)
+{
+  GList *item;
+  dt_scanner_t *scanner;
+
+  scanner = NULL;
+  item = self->devices;
+  while(item)
+  {
+    if (strcmp(name, dt_scanner_name((dt_scanner_t *)item->data)) == 0)
+    {
+      scanner = item->data;
+      break;
+    }
+
+    item = g_list_next(item);
+  }
+
   if (scanner != NULL)
     _scanner_ref(scanner);
 

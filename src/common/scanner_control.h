@@ -54,7 +54,10 @@ void dt_scanner_control_destroy(struct dt_scanner_control_t *self);
 void dt_scanner_control_find_scanners(struct dt_scanner_control_t *self);
 
 const GList *dt_scanner_control_get_scanners(struct dt_scanner_control_t *self);
-const struct dt_scanner_t *dt_scanner_control_get_scanner(struct dt_scanner_control_t *self, uint32_t index);
+const struct dt_scanner_t *dt_scanner_control_get_scanner_by_index(struct dt_scanner_control_t *self,
+                                                                   uint32_t index);
+const struct dt_scanner_t *dt_scanner_control_get_scanner_by_name(struct dt_scanner_control_t *self,
+                                                                  const char *name);
 
 /** \brief open a scanner for use. */
 int dt_scanner_open(const struct dt_scanner_t *self);
