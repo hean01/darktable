@@ -36,7 +36,7 @@ typedef struct dt_lib_scanner_t
   {
     GtkComboBoxText *scanners;
     GtkWidget *refresh;
-    GtkHBox *options;
+    GtkWidget *options;
     GtkWidget *preview;
   } gui;
 
@@ -117,19 +117,20 @@ static char * _scanner_options[] = {
 static void
 _scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_t *scanner)
 {
+  int rows;
   char **sopt;
-  GtkWidget *labels, *controls;
   GtkWidget *label, *widget;
   dt_lib_scanner_t *lib;
   lib = (dt_lib_scanner_t *)self->data;
 
   /* destroy previous options if any */
   if (lib->gui.options)
-    gtk_widget_destroy(GTK_WIDGET(lib->gui.options));
+    gtk_widget_destroy(lib->gui.options);
 
-  lib->gui.options = GTK_HBOX(gtk_hbox_new(FALSE, 5));
-  labels = gtk_vbox_new(TRUE, 0);
-  controls = gtk_vbox_new(TRUE, 0);
+  /* create table of options */
+  rows = 0;
+  lib->gui.options = gtk_table_new(0, 2, FALSE);
+  gtk_table_set_row_spacings(GTK_TABLE(lib->gui.options), 5);
 
   /* get active scanner from view */
   scanner = dt_view_scan_get_scanner(darktable.view_manager);
@@ -155,21 +156,19 @@ _scanner_rebuild_scanner_options(dt_lib_module_t *self, const struct dt_scanner_
 
     if (label && widget)
     {
-      gtk_box_pack_start(GTK_BOX(labels), label, TRUE, TRUE, 2);
-      gtk_box_pack_start(GTK_BOX(controls), widget, TRUE, TRUE, 2);
+      gtk_table_resize(GTK_TABLE(lib->gui.options), 1, 2);
+      gtk_table_attach(GTK_TABLE(lib->gui.options), label, 0, 1, rows, rows + 1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+      gtk_table_attach(GTK_TABLE(lib->gui.options), widget, 1, 2, rows, rows + 1, GTK_EXPAND|GTK_FILL, 0, 0, 0);
+      rows++;
     }
 
     sopt++;
   }
 
-  /* and new options to ui */
-  gtk_box_pack_start(GTK_BOX(lib->gui.options), labels, FALSE, FALSE, 0);
-  gtk_box_pack_start(GTK_BOX(lib->gui.options), controls, TRUE, FALSE, 0);
+  gtk_box_pack_start(GTK_BOX(self->widget), lib->gui.options, FALSE, FALSE, 5);
+  gtk_box_reorder_child(GTK_BOX(self->widget), lib->gui.options, 1);
 
-  gtk_box_pack_start(GTK_BOX(self->widget), GTK_WIDGET(lib->gui.options), TRUE, FALSE, 5);
-  gtk_box_reorder_child(GTK_BOX(self->widget), GTK_WIDGET(lib->gui.options), 1);
-
-  gtk_widget_show_all(GTK_WIDGET(lib->gui.options));
+  gtk_widget_show_all(lib->gui.options);
 }
 
 static void
