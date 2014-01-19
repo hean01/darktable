@@ -16,14 +16,10 @@
     along with darktable.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include "common/darktable.h"
-#include "common/camera_control.h"
-#include "control/jobs.h"
-#include "control/control.h"
 #include "control/conf.h"
 #include "libs/lib.h"
 #include "gui/gtk.h"
 #include "gui/gtkentry.h"
-#include "dtgtk/label.h"
 #include <gdk/gdkkeysyms.h>
 
 DT_MODULE(1)
@@ -105,14 +101,19 @@ create_callback(GtkButton *button, gpointer user_data)
 
   switch (cv->view(cv))
   {
+#ifdef HAVE_GPHOTO2
   case DT_VIEW_TETHERING:
     dt_view_tethering_set_job_code(darktable.view_manager,
                                    gtk_entry_get_text(lib->gui.entry1));
     break;
+#endif
+
+#ifdef HAVE_SANE
   case DT_VIEW_SCAN:
     dt_view_scan_set_job_code(darktable.view_manager,
                               gtk_entry_get_text(lib->gui.entry1));
     break;
+#endif
   }
 }
 
@@ -131,7 +132,6 @@ gui_init (dt_lib_module_t *self)
   GtkBox *hbox, *vbox1, *vbox2;
 
   // Session settings
-  //gtk_box_pack_start(GTK_BOX(self->widget), dtgtk_label_new("session settings",DARKTABLE_LABEL_TAB|DARKTABLE_LABEL_ALIGN_RIGHT), TRUE, TRUE, 0);
   hbox = GTK_BOX(gtk_hbox_new(FALSE, 5));
   vbox1 = GTK_BOX(gtk_vbox_new(TRUE, 5));
   vbox2 = GTK_BOX(gtk_vbox_new(TRUE, 5));
