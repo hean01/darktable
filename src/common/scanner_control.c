@@ -515,6 +515,27 @@ _scanner_set_options_from_config(const dt_scanner_t *self)
     return;
   }
 
+  /* Always set mode first
+     When mode is gray and set after depth, depth is changed to 8bit...
+     This workaround makes sure that mode is first set and depth afterwards.
+   */
+  item = options;
+  while (item)
+  {
+    cse = (dt_conf_string_entry_t *)item->data;
+    if (strcmp("mode", cse->key) == 0)
+    {
+      _scanner_option_set_value(self, cse->key, cse->value);
+      g_free(cse->key);
+      g_free(cse->value);
+      g_free(cse);
+      options = g_slist_delete_link(options, item);
+      break;
+    }
+    item = g_slist_next(item);
+  }
+
+  /* the set the rest */
   item = g_slist_last(options);
   while (item)
   {
