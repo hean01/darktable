@@ -1134,7 +1134,7 @@
   <dtconfig>
     <name>plugins/imageio/storage/disk/file_directory</name>
     <type>string</type>
-    <default>$(FILE_FOLDER)/darktable_exported/img_$(SEQUENCE)</default>
+    <default>$(FILE_FOLDER)/darktable_exported/$(FILE_NAME)</default>
     <shortdescription/>
     <longdescription/>
   </dtconfig>
@@ -1169,7 +1169,14 @@
   <dtconfig>
     <name>plugins/imageio/format/tiff/bpp</name>
     <type>int</type>
-    <default>16</default>
+    <default>8</default>
+    <shortdescription/>
+    <longdescription/>
+  </dtconfig>
+  <dtconfig>
+    <name>plugins/imageio/format/tiff/compress</name>
+    <type>int</type>
+    <default>2</default>
     <shortdescription/>
     <longdescription/>
   </dtconfig>
