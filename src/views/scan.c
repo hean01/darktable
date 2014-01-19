@@ -219,6 +219,7 @@ try_enter(dt_view_t *self)
   const struct dt_scanner_t *scanner;
 
   view = (dt_scan_view_t *)self->data;
+  scanner = NULL;
 
   /* If we do have a scanner lets enter */
   if (view->scanner)
@@ -233,8 +234,8 @@ try_enter(dt_view_t *self)
   active_scanner = dt_conf_get_string("scan/active_scanner");
   if (active_scanner)
     scanner = dt_scanner_control_get_scanner_by_name(darktable.scanctl, active_scanner);
-  /* else use the first in list */
-  else
+
+  if (scanner == NULL)
     scanner = dt_scanner_control_get_scanner_by_index(darktable.scanctl, 0);
 
   if (scanner == NULL)
