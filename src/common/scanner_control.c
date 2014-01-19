@@ -653,13 +653,16 @@ int
 dt_scanner_open(const dt_scanner_t *self)
 {
   SANE_Status res;
-  dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Opening device '%s'.\n", self->device->name);
-  res = sane_open(self->device->name, &((dt_scanner_t *)self)->handle);
-  if (res != SANE_STATUS_GOOD)
+  if (self->handle == NULL)
   {
-    fprintf(stderr, "[scanner_control] Failed to open device '%s' with reason: %s\n",
-            self->device->name, sane_strstatus(res));
-    return 1;
+    dt_print(DT_DEBUG_SCANCTL,"[scanner_control] Opening device '%s'.\n", self->device->name);
+    res = sane_open(self->device->name, &((dt_scanner_t *)self)->handle);
+    if (res != SANE_STATUS_GOOD)
+    {
+      fprintf(stderr, "[scanner_control] Failed to open device '%s' with reason: %s\n",
+              self->device->name, sane_strstatus(res));
+      return 1;
+    }
   }
 
   /* increase open reference count */
