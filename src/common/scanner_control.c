@@ -927,6 +927,36 @@ _scanline_gray8(const SANE_Parameters *params, uint8_t *buf, size_t ipcnt, float
   return pcnt;
 }
 
+/* convert input buffer 16bit grayscale into RGBA float buffer
+   returns number of pixels processed.
+*/
+static int
+_scanline_gray16(const SANE_Parameters *params, uint8_t *buf, size_t ipcnt, float *out, size_t opcnt)
+{
+  int i;
+  int pcnt;
+  uint16_t *pin;
+  float *pout;
+
+  /* how many pixels can we write into out */
+  pcnt = ipcnt;
+  if (pcnt > opcnt)
+    pcnt = opcnt;
+
+  /* convert 16bit grayscale data into RGBA float values */
+  pin = (uint16_t *)buf;
+  pout = out;
+  for (i = 0; i < pcnt; i++)
+  {
+    pout[0] = pout[1] = pout[2] = *pin / (float)0xffff;
+    pout[3] = 0.0f;
+
+    pin++;
+    pout += 4;
+  }
+  return pcnt;
+}
+
 static int
 _scanline_rgb8(const SANE_Parameters *params, uint8_t *buf, size_t ipcnt, float *out, size_t opcnt)
 {
@@ -947,6 +977,34 @@ _scanline_rgb8(const SANE_Parameters *params, uint8_t *buf, size_t ipcnt, float 
     pout[1] = buf[i+1] / (float)0xff;
     pout[2] = buf[i+2] / (float)0xff;
     pout[3] = 0.0f;
+    pout += 4;
+  }
+  return pcnt;
+}
+
+static int
+_scanline_rgb16(const SANE_Parameters *params, uint8_t *buf, size_t ipcnt, float *out, size_t opcnt)
+{
+  int i;
+  int pcnt;
+  uint16_t *pin;
+  float *pout;
+
+  /* how many pixels can we write into out */
+  pcnt = ipcnt;
+  if (pcnt > opcnt)
+    pcnt = opcnt;
+
+  /* convert 16bit RGB data into RGBA float values */
+  pin = (uint16_t *)buf;
+  pout = out;
+  for (i = 0; i < pcnt; i++)
+  {
+    pout[0] = pin[0] / (float)0xffff;
+    pout[1] = pin[1] / (float)0xffff;
+    pout[2] = pin[2] / (float)0xffff;
+    pout[3] = 0.0f;
+    pin += 3;
     pout += 4;
   }
   return pcnt;
@@ -990,7 +1048,7 @@ _scanner_scan_to_backend(const struct dt_scanner_t *self,
     return 1;
   }
 
-  if (params.depth != 8)
+  if (params.depth != 8 && params.depth != 16)
   {
     fprintf(stderr, "[scanner_control] Unsupported depth %d\n", params.depth);
     return 1;
@@ -1051,6 +1109,15 @@ _scanner_scan_to_backend(const struct dt_scanner_t *self,
                                              (params.pixels_per_line - scanline_fill));
           bytes_left -= pixels_processed;
         }
+        else if (params.depth == 16)
+        {
+          pixels_processed = _scanline_gray16(&params,
+                                              buf + (len - bytes_left),
+                                              (bytes_left / 2),
+                                              scanline + (scanline_fill * 4),
+                                              (params.pixels_per_line - scanline_fill));
+          bytes_left -= (pixels_processed * 2);
+        }
       }
       /* RGB */
       else if (params.format == SANE_FRAME_RGB)
@@ -1064,7 +1131,17 @@ _scanner_scan_to_backend(const struct dt_scanner_t *self,
                                             scanline + (scanline_fill * 4),
                                             (params.pixels_per_line - scanline_fill));
           bytes_left -= (pixels_processed * 3);
-         }
+        }
+        else if (params.depth == 16)
+        {
+          pixels_processed = _scanline_rgb16(&params,
+                                             buf + (len - bytes_left),
+                                             (bytes_left / 2 / 3),
+                                             scanline + (scanline_fill * 4),
+                                             (params.pixels_per_line - scanline_fill));
+          bytes_left -= (pixels_processed * 2 * 3);
+        }
+
       }
 
       /* check if pixels where processed */
