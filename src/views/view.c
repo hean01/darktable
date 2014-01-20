@@ -1444,13 +1444,13 @@ const struct dt_scanner_t *dt_view_scan_get_scanner(const dt_view_manager_t *vm)
 
 void dt_view_scan_set_job_code(const dt_view_manager_t *vm, const char *name)
 {
-  if (vm->proxy.tethering.view)
+  if (vm->proxy.scan.view)
     vm->proxy.scan.set_job_code(vm->proxy.scan.view, name);
 }
 
 const char *dt_view_scan_get_job_code(const dt_view_manager_t *vm)
 {
-  if (vm->proxy.tethering.view)
+  if (vm->proxy.scan.view)
     return vm->proxy.scan.get_job_code(vm->proxy.scan.view);
   return NULL;
 }
