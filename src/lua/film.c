@@ -20,22 +20,26 @@
 #include "lua/film.h"
 #include "lua/types.h"
 #include "lua/image.h"
+#include "lua/database.h"
 #include "common/film.h"
 #include "common/debug.h"
 #include "common/grealpath.h"
 #include <errno.h>
 
+static int film_delete(lua_State *L);
 
 typedef enum
 {
   PATH,
   ID,
+  DELETE,
   LAST_FILM_FIELD
 } film_fields;
 const char *film_fields_name[] =
 {
   "path",
   "id",
+  "delete",
   NULL
 };
 static int film_index(lua_State *L)
@@ -64,8 +68,24 @@ static int film_index(lua_State *L)
     case ID:
       lua_pushinteger(L,film_id);
       break;
+    case DELETE:
+      lua_pushcfunction(L,film_delete);
+      break;
   }
   return 1;
+}
+
+static int film_delete(lua_State *L)
+{
+  dt_lua_film_t film_id;
+  luaA_to(L,dt_lua_film_t,&film_id,1);
+  gboolean force = lua_toboolean(L,2);
+  if(force || dt_film_is_empty(film_id)) {
+    dt_film_remove(film_id);
+  } else {
+    return luaL_error(L,"Can't delete film, film is not empty");
+  }
+  return 0;
 }
 
 static int film_tostring(lua_State *L)
@@ -193,6 +213,10 @@ int dt_lua_init_film(lua_State * L)
   dt_lua_init_int_type(L,dt_lua_film_t);
   dt_lua_register_type_callback_list(L,dt_lua_film_t,film_index,NULL,film_fields_name);
   dt_lua_register_type_callback_number(L,dt_lua_film_t,film_getnum,NULL,film_len);
+  lua_pushcfunction(L,dt_lua_move_image);
+  dt_lua_register_type_callback_stack(L,dt_lua_film_t,"move_image");
+  lua_pushcfunction(L,dt_lua_copy_image);
+  dt_lua_register_type_callback_stack(L,dt_lua_film_t,"copy_image");
   luaL_getmetatable(L,"dt_lua_film_t");
   lua_pushcfunction(L,film_tostring);
   lua_setfield(L,-2,"__tostring");
@@ -207,6 +231,8 @@ int dt_lua_init_film(lua_State * L)
   dt_lua_register_type_callback_number_typeid(L,type_id,films_index,NULL,films_len);
   lua_pushcfunction(L,films_new);
   dt_lua_register_type_callback_stack_typeid(L,type_id,"new");
+  lua_pushcfunction(L,film_delete);
+  dt_lua_register_type_callback_stack_typeid(L,type_id,"delete");
 
   return 0;
 }

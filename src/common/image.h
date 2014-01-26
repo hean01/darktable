@@ -43,8 +43,11 @@ typedef enum
   DT_IMAGE_OKAY = 2,
   DT_IMAGE_NICE = 3,
   DT_IMAGE_EXCELLENT = 4,
-  // this refers to the state of the mipf buffer and its source.
-  DT_IMAGE_THUMBNAIL = 16,
+  // next field unused, but it used to be.
+  // old DB entries might have it set.
+  // To reuse : force to 0 in DB loading and force to 0 in DB saving
+  // Use it to store a state that doesn't need to go in DB
+  DT_IMAGE_THUMBNAIL_DEPRECATED = 16,
   // set during import if the image is low-dynamic range, i.e. doesn't need demosaic, wb, highlight clipping etc.
   DT_IMAGE_LDR = 32,
   // set during import if the image is raw data, i.e. it needs demosaicing.
@@ -58,7 +61,11 @@ typedef enum
   // legacy flag. is set for all new images. i hate to waste a bit on this :(
   DT_IMAGE_NO_LEGACY_PRESETS = 1024,
   // local copy status
-  DT_IMAGE_LOCAL_COPY = 2048
+  DT_IMAGE_LOCAL_COPY = 2048,
+  // image has an associated .txt file for overlay
+  DT_IMAGE_HAS_TXT = 4096,
+  // image has an associated wav file
+  DT_IMAGE_HAS_WAV = 8192
 }
 dt_image_flags_t;
 
@@ -346,6 +353,13 @@ void dt_image_synch_all_xmp(const gchar *pathname);
 // add an offset to the exif_datetime_taken field
 void dt_image_add_time_offset(const int imgid, const long int offset);
 #endif
+
+/** helper function to get the audio file filename that is accompanying the image. g_free() after use */
+char* dt_image_get_audio_path(const int32_t imgid);
+char* dt_image_get_audio_path_from_path(const char* image_path);
+/** helper function to get the text file filename that is accompanying the image. g_free() after use */
+char* dt_image_get_text_path(const int32_t imgid);
+char* dt_image_get_text_path_from_path(const char* image_path);
 
 #endif
 // modelines: These editor modelines have been set for all relevant files by tools/update_modelines.sh
