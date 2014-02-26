@@ -137,8 +137,8 @@ void process (struct dt_iop_module_t *self, dt_dev_pixelpipe_iop_t *piece, void 
 #endif
   for(int k=0; k<roi_out->height; k++)
   {
-    float *in = ((float *)ivoid) + ch*k*roi_out->width;
-    float *out = ((float *)ovoid) + ch*k*roi_out->width;
+    float *in = ((float *)ivoid) + (size_t)ch*k*roi_out->width;
+    float *out = ((float *)ovoid) + (size_t)ch*k*roi_out->width;
     for(int j=0; j<roi_out->width; j++,in+=ch,out+=ch)
     {
       const float lightness = in[0]/100.0;
@@ -357,7 +357,7 @@ expose (GtkWidget *widget, GdkEventExpose *event, dt_iop_module_t *self)
   }
   else
   {
-    mean = min = max = -1.0f;
+    mean = min = max = NAN;
   }
 
   dt_iop_relight_gui_data_t *g = (dt_iop_relight_gui_data_t *)self->gui_data;

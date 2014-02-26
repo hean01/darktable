@@ -202,12 +202,12 @@ basecurve (read_only image2d_t in, write_only image2d_t out, const int width, co
 
 
 
-/* kernel for the plugin colorin */
+/* kernel for the plugin colorin: unbound processing */
 kernel void
-colorin (read_only image2d_t in, write_only image2d_t out, const int width, const int height,
-         global float *mat, read_only image2d_t lutr, read_only image2d_t lutg, read_only image2d_t lutb,
-         const int map_blues,
-         global float *a)
+colorin_unbound (read_only image2d_t in, write_only image2d_t out, const int width, const int height,
+                 global float *cmat, global float *lmat, 
+                 read_only image2d_t lutr, read_only image2d_t lutg, read_only image2d_t lutb,
+                 const int map_blues, global float *a)
 {
   const int x = get_global_id(0);
   const int y = get_global_id(1);
@@ -242,8 +242,66 @@ colorin (read_only image2d_t in, write_only image2d_t out, const int width, cons
   for(int j=0;j<3;j++)
   {
     XYZ[j] = 0.0f;
-    for(int i=0;i<3;i++) XYZ[j] += mat[3*j+i] * cam[i];
+    for(int i=0;i<3;i++) XYZ[j] += cmat[3*j+i] * cam[i];
   }
+  float4 xyz = (float4)(XYZ[0], XYZ[1], XYZ[2], 0.0f);
+  pixel.xyz = XYZ_to_Lab(xyz).xyz;
+  write_imagef (out, (int2)(x, y), pixel);
+}
+
+/* kernel for the plugin colorin: with clipping */
+kernel void
+colorin_clipping (read_only image2d_t in, write_only image2d_t out, const int width, const int height,
+                  global float *cmat, global float *lmat, 
+                  read_only image2d_t lutr, read_only image2d_t lutg, read_only image2d_t lutb,
+                  const int map_blues, global float *a)
+{
+  const int x = get_global_id(0);
+  const int y = get_global_id(1);
+
+  if(x >= width || y >= height) return;
+
+  float4 pixel = read_imagef(in, sampleri, (int2)(x, y));
+
+  float cam[3], RGB[3], XYZ[3];
+  cam[0] = lookup_unbounded(lutr, pixel.x, a);
+  cam[1] = lookup_unbounded(lutg, pixel.y, a+3);
+  cam[2] = lookup_unbounded(lutb, pixel.z, a+6);
+
+
+  const float YY = cam[0]+cam[1]+cam[2];
+  if(map_blues && YY > 0.0f)
+  {
+    // manual gamut mapping. these values cause trouble when converting back from Lab to sRGB:
+    const float zz = cam[2]/YY;
+    // lower amount and higher bound_z make the effect smaller.
+    // the effect is weakened the darker input values are, saturating at bound_Y
+    const float bound_z = 0.5f, bound_Y = 0.8f;
+    const float amount = 0.11f;
+    if (zz > bound_z)
+    {
+      const float t = (zz - bound_z)/(1.0f-bound_z) * fmin(1.0f, YY/bound_Y);
+      cam[1] += t*amount;
+      cam[2] -= t*amount;
+    }
+  }
+  // convert camera to RGB using the first color matrix
+  for(int j=0;j<3;j++)
+  {
+    RGB[j] = 0.0f;
+    for(int i=0;i<3;i++) RGB[j] += cmat[3*j+i] * cam[i];
+  }
+
+  // clamp at this stage
+  for(int i=0; i<3; i++) RGB[i] = clamp(RGB[i], 0.0f, 1.0f);
+
+  // convert clipped RGB to XYZ
+  for(int j=0;j<3;j++)
+  {
+    XYZ[j] = 0.0f;
+    for(int i=0;i<3;i++) XYZ[j] += lmat[3*j+i] * RGB[i];
+  }
+
   float4 xyz = (float4)(XYZ[0], XYZ[1], XYZ[2], 0.0f);
   pixel.xyz = XYZ_to_Lab(xyz).xyz;
   write_imagef (out, (int2)(x, y), pixel);
@@ -1313,5 +1371,88 @@ colisa (read_only image2d_t in, write_only image2d_t out, unsigned int width, un
   o.w = i.w;
 
   write_imagef(out, (int2)(x, y), o);
+}
+
+/* kernel for the interpolation resample helper */
+kernel void
+interpolation_resample (read_only image2d_t in, write_only image2d_t out, const int width, const int height,
+                        const global int *hmeta, const global int *vmeta,
+                        const global int *hlength, const global int *vlength,
+                        const global int *hindex, const global int *vindex,
+                        const global float *hkernel, const global float *vkernel,
+                        const int htaps, const int vtaps,
+                        local float *lkernel, local int *lindex,
+                        local float4 *buffer)
+{
+  const int x = get_global_id(0);
+  const int yi = get_global_id(1);
+  const int ylsz = get_local_size(1);
+  const int xlid = get_local_id(0);
+  const int ylid = get_local_id(1);
+  const int y = yi / vtaps;
+  const int iy = yi % vtaps;
+
+  // Initialize resampling indices
+  const int xm = min(x, width - 1);
+  const int ym = min(y, height - 1);
+  const int hlidx = hmeta[xm*3];   // H(orizontal) L(ength) I(n)d(e)x
+  const int hkidx = hmeta[xm*3+1]; // H(orizontal) K(ernel) I(n)d(e)x
+  const int hiidx = hmeta[xm*3+2]; // H(orizontal) I(ndex) I(n)d(e)x
+  const int vlidx = vmeta[ym*3];   // V(ertical) L(ength) I(n)d(e)x
+  const int vkidx = vmeta[ym*3+1]; // V(ertical) K(ernel) I(n)d(e)x
+  const int viidx = vmeta[ym*3+2]; // V(ertical) I(ndex) I(n)d(e)x
+
+  const int hl = hlength[hlidx];   // H(orizontal) L(ength)
+  const int vl = vlength[vlidx];   // V(ertical) L(ength)
+
+  // generate local copy of horizontal index field and kernel
+  for(int n = 0; n <= htaps/ylsz; n++)
+  {
+    int k = mad24(n, ylsz, ylid);
+    if(k >= hl) continue;
+    lindex[k] = hindex[hiidx+k];
+    lkernel[k] = hkernel[hkidx+k];
+  }
+
+  barrier(CLK_LOCAL_MEM_FENCE);
+
+  // horizontal convolution kernel; store intermediate result in local buffer
+  if(x < width && y < height)
+  {
+    const int yvalid = iy < vl;
+
+    const int yy = yvalid ? vindex[viidx+iy] : -1;
+
+    float4 vpixel = (float4)0.0f;
+
+    for (int ix = 0; ix < hl && yvalid; ix++)
+    {
+      const int xx = lindex[ix];
+      float4 hpixel = read_imagef(in, sampleri,(int2)(xx, yy));
+      vpixel += hpixel * lkernel[ix];
+    }
+
+    buffer[ylid] = yvalid ? vpixel * vkernel[vkidx+iy] : (float4)0.0f;
+  }
+  else
+    buffer[ylid] = (float4)0.0f;
+
+  barrier(CLK_LOCAL_MEM_FENCE);
+
+  // recursively reduce local buffer (vertical convolution kernel)
+  for(int offset = vtaps / 2; offset > 0; offset >>= 1)
+  {
+    if (iy < offset)
+    {
+      buffer[ylid] += buffer[ylid + offset];
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+  }
+
+  // store final result
+  if (iy == 0 && x < width && y < height)
+  {
+    write_imagef (out, (int2)(x, y), buffer[ylid]);
+  }
 }
 

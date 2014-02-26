@@ -835,11 +835,11 @@ int dt_init(int argc, char *argv[], const int init_gui)
 
 void dt_cleanup()
 {
-  dt_ctl_switch_mode_to(DT_MODE_NONE);
   const int init_gui = (darktable.gui != NULL);
 
   if(init_gui)
   {
+    dt_ctl_switch_mode_to(DT_MODE_NONE);
     dt_dbus_destroy(darktable.dbus);
 
     dt_control_write_config(darktable.control);
@@ -955,7 +955,7 @@ void dt_free_align(void *mem)
 void dt_show_times(const dt_times_t *start, const char *prefix, const char *suffix, ...)
 {
   dt_times_t end;
-  char buf[120];		/* Arbitrary size, should be lots big enough for everything used in DT */
+  char buf[160];		/* Arbitrary size, should be lots big enough for everything used in DT */
   int i;
 
   /* Skip all the calculations an everything if -d perf isn't on */
