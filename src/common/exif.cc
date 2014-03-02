@@ -1348,8 +1348,8 @@ static void _exif_import_tags(dt_image_t *img,Exiv2::XmpData::iterator &pos)
   for (int i=0; i<cnt; i++)
   {
     char tagbuf[1024];
-    const char *tag2 = pos->toString(i).c_str();
-    g_strlcpy(tagbuf, tag2, sizeof(tagbuf));
+    std::string pos_str = pos->toString(i);
+    g_strlcpy(tagbuf, pos_str.c_str(), sizeof(tagbuf));
     int tagid = -1;
     char *tag = tagbuf;
     while(tag)
@@ -1506,9 +1506,10 @@ int dt_exif_xmp_read (dt_image_t *img, const char* filename, const int history_o
           DT_DEBUG_SQLITE3_BIND_INT(stmt, 1, img->id);
           DT_DEBUG_SQLITE3_BIND_INT(stmt, 2, mask_id->toLong(i));
           DT_DEBUG_SQLITE3_BIND_INT(stmt, 3, mask_type->toLong(i));
-          if(mask_name->toString(i).c_str() != NULL)
+          std::string mask_name_str = mask_name->toString(i);
+          if(mask_name_str.c_str() != NULL)
           {
-            const char *mname = mask_name->toString(i).c_str();
+            const char *mname = mask_name_str.c_str();
             DT_DEBUG_SQLITE3_BIND_TEXT(stmt, 4, mname, strlen(mname), SQLITE_TRANSIENT);
           }
           else
@@ -1517,14 +1518,16 @@ int dt_exif_xmp_read (dt_image_t *img, const char* filename, const int history_o
             DT_DEBUG_SQLITE3_BIND_TEXT(stmt, 4, mname, strlen(mname), SQLITE_TRANSIENT);
           }
           DT_DEBUG_SQLITE3_BIND_INT(stmt, 5, mask_version->toLong());
-          const char *mask_c = mask->toString(i).c_str();
+          std::string mask_str = mask->toString(i);
+          const char *mask_c = mask_str.c_str();
           const int mask_c_len = strlen(mask_c);
           int mask_len = 0;
           const unsigned char *mask_d = dt_exif_xmp_decode(mask_c, mask_c_len, &mask_len);
           DT_DEBUG_SQLITE3_BIND_BLOB(stmt, 6, mask_d, mask_len, SQLITE_TRANSIENT);
           DT_DEBUG_SQLITE3_BIND_INT(stmt, 7, mask_nb->toLong(i));
 
-          const char *mask_src_c = mask_src->toString(i).c_str();
+          std::string mask_src_str = mask_src->toString(i);
+          const char *mask_src_c = mask_src_str.c_str();
           const int mask_src_c_len = strlen(mask_src_c);
           int mask_src_len = 0;
           unsigned char *mask_src = dt_exif_xmp_decode(mask_src_c, mask_src_c_len, &mask_src_len);
@@ -1575,8 +1578,10 @@ int dt_exif_xmp_read (dt_image_t *img, const char* filename, const int history_o
         {
           const int modversion = ver->toLong(i);
           const int enabled = en->toLong(i);
-          const char *operation = op->toString(i).c_str();
-          const char *param_c = param->toString(i).c_str();
+          std::string op_str = op->toString(i);
+          const char *operation = op_str.c_str();
+          std::string param_str = param->toString(i);
+          const char *param_c = param_str.c_str();
           const int param_c_len = strlen(param_c);
           int params_len = 0;
           unsigned char *params = dt_exif_xmp_decode(param_c, param_c_len, &params_len);
@@ -1602,9 +1607,10 @@ int dt_exif_xmp_read (dt_image_t *img, const char* filename, const int history_o
           /* check if we got blendop from xmp */
           unsigned char *blendop_params = NULL;
           int blendop_size = 0;
-          if(blendop != xmpData.end() && blendop->size() > 0 && blendop->count () > i && blendop->toString(i).c_str() != NULL)
+          std::string blendop_str = blendop->toString(i);
+          if(blendop != xmpData.end() && blendop->size() > 0 && blendop->count () > i && blendop_str.c_str() != NULL)
           {
-            blendop_params = dt_exif_xmp_decode(blendop->toString(i).c_str(), strlen(blendop->toString(i).c_str()), &blendop_size);
+            blendop_params = dt_exif_xmp_decode(blendop_str.c_str(), strlen(blendop_str.c_str()), &blendop_size);
             DT_DEBUG_SQLITE3_BIND_BLOB(stmt_upd_hist, 7, blendop_params, blendop_size, SQLITE_TRANSIENT);
           }
           else
@@ -1622,10 +1628,11 @@ int dt_exif_xmp_read (dt_image_t *img, const char* filename, const int history_o
           int mprio = 0;
           if (multi_priority != xmpData.end() && multi_priority->count() > i)  mprio = multi_priority->toLong(i);
           DT_DEBUG_SQLITE3_BIND_INT(stmt_upd_hist, 9, mprio);
+          std::string multi_name_str = multi_name->toString(i);
           if(multi_name != xmpData.end() && multi_name->size() > 0 &&
-              multi_name->count() > i && multi_name->toString(i).c_str() != NULL)
+            multi_name->count() > i && multi_name_str.c_str() != NULL)
           {
-            const char *mname = multi_name->toString(i).c_str();
+            const char *mname = multi_name_str.c_str();
             DT_DEBUG_SQLITE3_BIND_TEXT(stmt_upd_hist, 10, mname, strlen(mname), SQLITE_TRANSIENT);
           }
           else
@@ -1798,7 +1805,7 @@ dt_exif_xmp_read_data(Exiv2::XmpData &xmpData, const int imgid)
   DT_DEBUG_SQLITE3_BIND_INT(stmt, 1, imgid);
   while(sqlite3_step(stmt) == SQLITE_ROW)
   {
-    snprintf(val, 2048, "%d", sqlite3_column_int(stmt, 0));
+    snprintf(val, sizeof(val), "%d", sqlite3_column_int(stmt, 0));
     v->read(val);
   }
   sqlite3_finalize(stmt);
@@ -1829,45 +1836,45 @@ dt_exif_xmp_read_data(Exiv2::XmpData &xmpData, const int imgid)
   while(sqlite3_step(stmt) == SQLITE_ROW)
   {
     int32_t mask_id = sqlite3_column_int(stmt, 1);
-    snprintf(val, 2048, "%d", mask_id);
+    snprintf(val, sizeof(val), "%d", mask_id);
     tvm.read(val);
-    snprintf(key, 1024, "Xmp.darktable.mask_id[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.mask_id[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tvm);
 
     int32_t mask_type = sqlite3_column_int(stmt, 2);
-    snprintf(val, 2048, "%d", mask_type);
+    snprintf(val, sizeof(val), "%d", mask_type);
     tvm.read(val);
-    snprintf(key, 1024, "Xmp.darktable.mask_type[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.mask_type[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tvm);
 
     const char *mask_name = (const char *)sqlite3_column_text(stmt, 3);
     tvm.read(mask_name);
-    snprintf(key, 1024, "Xmp.darktable.mask_name[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.mask_name[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tvm);
 
     int32_t mask_version = sqlite3_column_int(stmt, 4);
-    snprintf(val, 2048, "%d", mask_version);
+    snprintf(val, sizeof(val), "%d", mask_version);
     tvm.read(val);
-    snprintf(key, 1024, "Xmp.darktable.mask_version[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.mask_version[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tvm);
 
     int32_t len = sqlite3_column_bytes(stmt, 5);
     char *mask_d = dt_exif_xmp_encode ((const unsigned char *)sqlite3_column_blob(stmt, 5), len, NULL);
     tvm.read(mask_d);
-    snprintf(key, 1024, "Xmp.darktable.mask[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.mask[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tvm);
     free(mask_d);
 
     int32_t mask_nb = sqlite3_column_int(stmt, 6);
-    snprintf(val, 2048, "%d", mask_nb);
+    snprintf(val, sizeof(val), "%d", mask_nb);
     tvm.read(val);
-    snprintf(key, 1024, "Xmp.darktable.mask_nb[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.mask_nb[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tvm);
 
     len = sqlite3_column_bytes(stmt, 7);
     char *mask_src = dt_exif_xmp_encode ((const unsigned char *)sqlite3_column_blob(stmt, 7), len, NULL);
     tvm.read(mask_src);
-    snprintf(key, 1024, "Xmp.darktable.mask_src[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.mask_src[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tvm);
     free(mask_src);
 
@@ -1902,28 +1909,28 @@ dt_exif_xmp_read_data(Exiv2::XmpData &xmpData, const int imgid)
   while(sqlite3_step(stmt) == SQLITE_ROW)
   {
     int32_t modversion = sqlite3_column_int(stmt, 2);
-    snprintf(val, 2048, "%d", modversion);
+    snprintf(val, sizeof(val), "%d", modversion);
     tv.read(val);
-    snprintf(key, 1024, "Xmp.darktable.history_modversion[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.history_modversion[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
 
     int32_t enabled = sqlite3_column_int(stmt, 5);
-    snprintf(val, 2048, "%d", enabled);
+    snprintf(val, sizeof(val), "%d", enabled);
     tv.read(val);
-    snprintf(key, 1024, "Xmp.darktable.history_enabled[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.history_enabled[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
 
     const char *op = (const char *)sqlite3_column_text(stmt, 3);
     if(!op) continue; // no op is fatal.
     tv.read(op);
-    snprintf(key, 1024, "Xmp.darktable.history_operation[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.history_operation[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
 
     /* read and add history params */
     int32_t len = sqlite3_column_bytes(stmt, 4);
     char *vparams = dt_exif_xmp_encode ((const unsigned char *)sqlite3_column_blob(stmt, 4), len, NULL);
     tv.read(vparams);
-    snprintf(key, 1024, "Xmp.darktable.history_params[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.history_params[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
     free(vparams);
 
@@ -1933,27 +1940,27 @@ dt_exif_xmp_read_data(Exiv2::XmpData &xmpData, const int imgid)
     len = sqlite3_column_bytes(stmt, 6);
     vparams = dt_exif_xmp_encode ((const unsigned char *)blob, len, NULL);
     tv.read(vparams);
-    snprintf(key, 1024, "Xmp.darktable.blendop_params[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.blendop_params[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
     free(vparams);
 
     /* read and add blendop version */
     int32_t blversion = sqlite3_column_int(stmt, 7);
-    snprintf(val, 2048, "%d", blversion);
+    snprintf(val, sizeof(val), "%d", blversion);
     tv.read(val);
-    snprintf(key, 1024, "Xmp.darktable.blendop_version[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.blendop_version[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
 
     /* read and add multi instances */
     int32_t mprio = sqlite3_column_int(stmt, 8);
-    snprintf(val, 2048, "%d", mprio);
+    snprintf(val, sizeof(val), "%d", mprio);
     tv.read(val);
-    snprintf(key, 1024, "Xmp.darktable.multi_priority[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.multi_priority[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
     const char *mname = (const char *)sqlite3_column_text(stmt, 9);
     if(mname) tv.read(mname);
     else tv.read("");
-    snprintf(key, 1024, "Xmp.darktable.multi_name[%d]", num);
+    snprintf(key, sizeof(key), "Xmp.darktable.multi_name[%d]", num);
     xmpData.add(Exiv2::XmpKey(key), &tv);
 
     num ++;

@@ -47,7 +47,6 @@
 #include "develop/develop.h"
 #include "develop/imageop.h"
 #include "develop/blend.h"
-#include "iop/colorout.h"
 #include "libraw/libraw.h"
 
 #include <inttypes.h>
@@ -716,7 +715,7 @@ int dt_imageio_export_with_flags(
           h->enabled = s->enabled;
           h->module = m;
           h->multi_priority = 1;
-          strcpy(h->multi_name, "");
+          g_strlcpy(h->multi_name, "", sizeof(h->multi_name));
 
           dev.history_end++;
           dev.history = g_list_append(dev.history, h);
@@ -755,10 +754,10 @@ int dt_imageio_export_with_flags(
     while (modules)
     {
       colorout = (dt_iop_module_t *)modules->data;
-      if (strcmp(colorout->op, "colorout") == 0)
+      if(colorout->get_p && strcmp(colorout->op, "colorout") == 0)
       {
-        dt_iop_colorout_params_t *p = (dt_iop_colorout_params_t *)colorout->params;
-        if(!strcmp(p->iccprofile, "sRGB")) sRGB = 1;
+        const char *iccprofile = colorout->get_p(colorout->params, "iccprofile");
+        if(!strcmp(iccprofile, "sRGB")) sRGB = 1;
         else sRGB = 0;
       }
       modules = g_list_next(modules);
