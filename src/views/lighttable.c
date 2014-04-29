@@ -624,13 +624,13 @@ end_query_cache:
 
         cairo_save(cr);
         // if(iir == 1) dt_image_prefetch(image, DT_IMAGE_MIPF);
-        dt_view_image_expose(&(lib->image_over), id, cr, wd, iir == 1 ? height : ht, iir, img_pointerx, img_pointery, FALSE);
         if (iir==1)
         {
           // we are on the single-image display at a time, in this case we want the selection to be updated to contain
           // this single image.
           dt_selection_select_single(darktable.selection, id);
         }
+        dt_view_image_expose(&(lib->image_over), id, cr, wd, iir == 1 ? height : ht, iir, img_pointerx, img_pointery, FALSE);
 
         cairo_restore(cr);
       }
@@ -1162,7 +1162,7 @@ void expose_full_preview(dt_view_t *self, cairo_t *cr, int32_t width, int32_t he
     {
       gboolean from_cache = FALSE;
       char filename[2048];
-      dt_image_full_path(lib->full_preview_id, filename, 2048, &from_cache);
+      dt_image_full_path(lib->full_preview_id, filename, sizeof(filename), &from_cache);
       if(lib->full_res_thumb)
       {
         free(lib->full_res_thumb);
@@ -1701,6 +1701,7 @@ int button_pressed(dt_view_t *self, double x, double y, double pressure, int whi
               g_free(filename);
             }
           }
+          g_free(player);
         }
 
         break;

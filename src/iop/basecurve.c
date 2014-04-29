@@ -355,6 +355,7 @@ void cleanup_pipe (struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_de
   dt_iop_basecurve_data_t *d = (dt_iop_basecurve_data_t *)(piece->data);
   dt_draw_curve_destroy(d->curve);
   free(piece->data);
+  piece->data = NULL;
 }
 
 void gui_update(struct dt_iop_module_t *self)
@@ -415,8 +416,8 @@ dt_iop_basecurve_enter_notify(GtkWidget *widget, GdkEventCrossing *event, gpoint
 {
   dt_iop_module_t *self = (dt_iop_module_t *)user_data;
   dt_iop_basecurve_gui_data_t *c = (dt_iop_basecurve_gui_data_t *)self->gui_data;
-  c->mouse_x = fabsf(c->mouse_x);
-  c->mouse_y = fabsf(c->mouse_y);
+  c->mouse_x = fabs(c->mouse_x);
+  c->mouse_y = fabs(c->mouse_y);
   gtk_widget_queue_draw(widget);
   return TRUE;
 }
@@ -427,8 +428,8 @@ dt_iop_basecurve_leave_notify(GtkWidget *widget, GdkEventCrossing *event, gpoint
   dt_iop_module_t *self = (dt_iop_module_t *)user_data;
   dt_iop_basecurve_gui_data_t *c = (dt_iop_basecurve_gui_data_t *)self->gui_data;
   // sign swapping for fluxbox
-  c->mouse_x = -fabsf(c->mouse_x);
-  c->mouse_y = -fabsf(c->mouse_y);
+  c->mouse_x = -fabs(c->mouse_x);
+  c->mouse_y = -fabs(c->mouse_y);
   gtk_widget_queue_draw(widget);
   return TRUE;
 }

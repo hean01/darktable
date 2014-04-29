@@ -402,7 +402,7 @@ CA_correct(struct dt_iop_module_t *self, dt_dev_pixelpipe_iop_t *piece, const fl
             c = FC(rr,cc,filters);
             indx=row*width+col;
             indx1=rr*TS+cc;
-            rgb[indx1][c] = in[row*width + col];//(rawData[row][col])/65535.0f;
+            rgb[indx1][c] = in[indx];//(rawData[row][col])/65535.0f;
             //rgb[indx1][c] = image[indx][c]/65535.0f;//for dcraw implementation
           }
 
@@ -1278,6 +1278,7 @@ void init_pipe     (struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_d
 void cleanup_pipe  (struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_dev_pixelpipe_iop_t *piece)
 {
   free(piece->data);
+  piece->data = NULL;
 }
 
 void gui_update    (dt_iop_module_t *self)

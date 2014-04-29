@@ -513,6 +513,7 @@ void init_pipe (struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_dev_p
 void cleanup_pipe (struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_dev_pixelpipe_iop_t *piece)
 {
   free(piece->data);
+  piece->data = NULL;
 }
 
 /** gui callbacks, these are needed. */
@@ -523,7 +524,7 @@ void gui_update (dt_iop_module_t *self)
   //update clones count
   char str[3];
   dt_masks_form_t *grp = dt_masks_get_from_id(self->dev,self->blend_params->mask_id);
-  int nb = 0;
+  guint nb = 0;
   if (grp && (grp->type & DT_MASKS_GROUP)) nb = g_list_length(grp->points);
   snprintf(str,sizeof(str),"%d",nb);
   gtk_label_set_text(g->label, str);

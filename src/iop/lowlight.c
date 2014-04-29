@@ -273,6 +273,7 @@ void cleanup_pipe (struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_de
   dt_iop_lowlight_data_t *d = (dt_iop_lowlight_data_t *)(piece->data);
   dt_draw_curve_destroy(d->curve);
   free(piece->data);
+  piece->data = NULL;
 }
 
 void gui_update(struct dt_iop_module_t *self)
@@ -681,10 +682,10 @@ lowlight_motion_notify(GtkWidget *widget, GdkEventMotion *event, gpointer user_d
   else if(event->y > height)
   {
     c->x_move = 0;
-    float dist = fabsf(p->transition_x[0] - c->mouse_x);
+    float dist = fabs(p->transition_x[0] - c->mouse_x);
     for(int k=1; k<DT_IOP_LOWLIGHT_BANDS; k++)
     {
-      float d2 = fabsf(p->transition_x[k] - c->mouse_x);
+      float d2 = fabs(p->transition_x[k] - c->mouse_x);
       if(d2 < dist)
       {
         c->x_move = k;

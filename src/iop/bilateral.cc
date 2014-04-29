@@ -172,8 +172,6 @@ extern "C"
         }
       }
       // fill unprocessed border
-      in  = (float *)ivoid;
-      out = (float *)ovoid;
       for(int j=0; j<rad; j++)
         memcpy(((float*)ovoid) + (size_t)ch*j*roi_out->width, ((float*)ivoid) + (size_t)ch*j*roi_in->width, (size_t)ch*sizeof(float)*roi_out->width);
       for(int j=roi_out->height-rad; j<roi_out->height; j++)
@@ -272,6 +270,7 @@ extern "C"
   void cleanup_pipe (struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_dev_pixelpipe_iop_t *piece)
   {
     free(piece->data);
+    piece->data = NULL;
   }
 
   void gui_update(struct dt_iop_module_t *self)

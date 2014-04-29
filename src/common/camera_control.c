@@ -122,7 +122,7 @@ void _gphoto_log25(GPLogLevel level, const char *domain, const char *log, void *
 void _gphoto_log(GPLogLevel level, const char *domain, const char *format, va_list args, void *data)
 {
   char log[4096]= {0};
-  vsprintf(log,format,args);
+  vsnprintf(log, sizeof(log), format, args);
   _gphoto_log25(level, domain, log, data);
 }
 #endif
@@ -186,7 +186,7 @@ static void _message_func_dispatch25(GPContext *context, const char *text, void 
 static void _status_func_dispatch(GPContext *context, const char *format, va_list args, void *data)
 {
   char buffer[4096];
-  vsprintf( buffer, format, args );
+  vsnprintf(buffer, sizeof(buffer), format, args);
 
   _status_func_dispatch25(context, buffer, data);
 }
@@ -194,7 +194,7 @@ static void _status_func_dispatch(GPContext *context, const char *format, va_lis
 static void _error_func_dispatch(GPContext *context, const char *format, va_list args, void *data)
 {
   char buffer[4096];
-  vsprintf (buffer, format, args );
+  vsnprintf(buffer, sizeof(buffer), format, args);
 
   _error_func_dispatch25(context, buffer, data);
 }
@@ -202,7 +202,7 @@ static void _error_func_dispatch(GPContext *context, const char *format, va_list
 static void _message_func_dispatch(GPContext *context, const char *format, va_list args, void *data)
 {
   char buffer[4096];
-  vsprintf( buffer, format, args );
+  vsnprintf(buffer, sizeof(buffer), format, args);
   _message_func_dispatch25(context, buffer, data);
 }
 #endif
@@ -281,12 +281,18 @@ static void _camera_process_job(const dt_camctl_t *c,const dt_camera_t *camera, 
         char *output = g_build_filename (output_path,fname,(char *)NULL);
 
         int handle = open (output, O_CREAT | O_WRONLY,0666);
-        gp_file_new_from_fd (&destination , handle);
-        gp_camera_file_get (camera->gpcam, fp.folder , fp.name, GP_FILE_TYPE_NORMAL, destination,  c->gpcontext);
-        close (handle);
-
-        // Notify listeners of captured image
-        _dispatch_camera_image_downloaded (c,camera,output);
+        if(handle != -1)
+        {
+          gp_file_new_from_fd (&destination , handle);
+          if(gp_camera_file_get(camera->gpcam, fp.folder, fp.name, GP_FILE_TYPE_NORMAL, destination,  c->gpcontext) == GP_OK)
+          {
+            // Notify listeners of captured image
+            _dispatch_camera_image_downloaded(c,camera,output);
+          } else
+            dt_print(DT_DEBUG_CAMCTL,"[camera_control] failed to download file %s\n",output);
+          close (handle);
+        } else
+          dt_print(DT_DEBUG_CAMCTL,"[camera_control] failed to download file %s\n",output);
         g_free (output);
       }
       else
@@ -316,14 +322,23 @@ static void _camera_process_job(const dt_camctl_t *c,const dt_camera_t *camera, 
       else
       {
         // everything worked
-        GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
-        if(gdk_pixbuf_loader_write(loader, (guchar*)data, data_size, NULL) == TRUE)
+        GError *error = NULL;
+        GdkPixbufLoader *loader = gdk_pixbuf_loader_new_with_mime_type("image/jpeg", &error); // there were cases where GDKPixbufLoader failed to recognize the JPEG
+        if(error)
         {
-          dt_pthread_mutex_lock(&cam->live_view_pixbuf_mutex);
-          if(cam->live_view_pixbuf != NULL)
-            g_object_unref(cam->live_view_pixbuf);
-          cam->live_view_pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
-          dt_pthread_mutex_unlock(&cam->live_view_pixbuf_mutex);
+          dt_print(DT_DEBUG_CAMCTL, "[camera_control] live view failed to create jpeg image loader: %s\n", error->message);
+          g_error_free(error);
+        }
+        else
+        {
+          if(gdk_pixbuf_loader_write(loader, (guchar*)data, data_size, NULL) == TRUE)
+          {
+            dt_pthread_mutex_lock(&cam->live_view_pixbuf_mutex);
+            if(cam->live_view_pixbuf != NULL)
+              g_object_unref(cam->live_view_pixbuf);
+            cam->live_view_pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
+            dt_pthread_mutex_unlock(&cam->live_view_pixbuf_mutex);
+          }
         }
         gdk_pixbuf_loader_close(loader, NULL);
       }
@@ -816,15 +831,15 @@ void dt_camctl_import(const dt_camctl_t *c,const dt_camera_t *cam,GList *images)
       if(handle != -1)
       {
         gp_file_new_from_fd( &destination , handle );
-        if( gp_camera_file_get( cam->gpcam, folder , filename, GP_FILE_TYPE_NORMAL, destination,  c->gpcontext) == GP_OK)
+        if(gp_camera_file_get(cam->gpcam, folder, filename, GP_FILE_TYPE_NORMAL, destination, c->gpcontext) == GP_OK)
         {
           _dispatch_camera_image_downloaded(c,cam,output);
-        }
-        else
+        } else
           dt_print(DT_DEBUG_CAMCTL,"[camera_control] failed to download file %s\n",output);
-
         close( handle );
-      }
+      } else
+        dt_print(DT_DEBUG_CAMCTL,"[camera_control] failed to download file %s\n",output);
+      g_free (output);
     }
     while( (ifile=g_list_next(ifile)) );
 
@@ -1302,14 +1317,15 @@ void _camera_poll_events(const dt_camctl_t *c,const dt_camera_t *cam)
         if(handle != -1)
         {
           gp_file_new_from_fd( &destination , handle );
-          gp_camera_file_get( cam->gpcam, fp->folder , fp->name, GP_FILE_TYPE_NORMAL, destination,  c->gpcontext);
+          if(gp_camera_file_get(cam->gpcam, fp->folder, fp->name, GP_FILE_TYPE_NORMAL, destination, c->gpcontext) == GP_OK)
+          {
+            // Notify listeners of captured image
+            _dispatch_camera_image_downloaded(c,cam,output);
+          } else
+            dt_print(DT_DEBUG_CAMCTL,"[camera_control] failed to download file %s\n",output);
           close( handle );
-
-          // Notify listeners of captured image
-          _dispatch_camera_image_downloaded(c,cam,output);
-        } else {
+        } else
           dt_print(DT_DEBUG_CAMCTL,"[camera_control] failed to download file %s\n",output);
-        }
         g_free(output);
       }
     }

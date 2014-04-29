@@ -289,7 +289,7 @@ backtransform(
 // begin wavelet code:
 // =====================================================================================
 
-static __m128  inline
+static inline __m128
 weight_sse(const __m128 *c1, const __m128 *c2, const float inv_sigma2)
 {
   // return _mm_set1_ps(1.0f);
@@ -1627,6 +1627,7 @@ void init_pipe(struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_dev_pi
 void cleanup_pipe(struct dt_iop_module_t *self, dt_dev_pixelpipe_t *pipe, dt_dev_pixelpipe_iop_t *piece)
 {
   free(piece->data);
+  piece->data = NULL;
 }
 
 static void

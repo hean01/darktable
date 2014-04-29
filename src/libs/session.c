@@ -155,7 +155,6 @@ gui_init (dt_lib_module_t *self)
 
   /* intialize entry with current jobcode from view */
   gtk_entry_set_text(lib->gui.entry1, _view_get_job_code());
-
 }
 
 void
